@@ -1,6 +1,10 @@
 #!/bin/bash
 
 # TODO help
+# TODO format as parameter
+# TODO more useful debug logs
+# TODO set +x
+# TODO comments
 
 # Safeguards
 #   -u not specified because of associative array use
@@ -13,25 +17,25 @@ source "./utils.bash"
 # Globals
 ## Once set, they should be read-only
 ## Parameters
-declare    source
-declare    target
-declare -i flag_move
-declare -i log_level
+declare     source
+declare     target
+declare -i  flag_move
+declare -i  log_level
 ## Execution
-declare -a input_stream_data
-declare    output_extension
+declare -a  input_stream_data
+declare     output_extension
 
 # CONSTANTS
 ## taking windows limitations in account, to guarantee maximum portability
-declare -r    FORBIDDEN_CHARS='{}/|\<:>?*"'
-declare -r    REPLACER_MARKER="?"
-declare -r    ADDITION_MARKER="+"
-declare -r    TOKEN_COMPOSITION_OPENER="{"
-declare -r    TOKEN_COMPOSITION_CLOSER="}"
-declare -r    TOKEN_COMPOSITION_CLOSERS="${TOKEN_COMPOSITION_CLOSER}${REPLACER_MARKER}${ADDITION_MARKER}"
-declare -r    PLACEHOLDER="_"
-declare -r    DEFAULT_FORMAT="{album_artist}/{orig_year?year} – {album}/{disc+-}{track} – {title}.{extension}"
-declare -r -A AVAILABLE_TAGS=(  [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST]=ARTIST \
+declare -r      FORBIDDEN_CHARS='{}/|\<:>?*"'
+declare -r      REPLACER_MARKER="?"
+declare -r      ADDITION_MARKER="+"
+declare -r      TOKEN_COMPOSITION_OPENER="{"
+declare -r      TOKEN_COMPOSITION_CLOSER="}"
+declare -r      TOKEN_COMPOSITION_CLOSERS="${TOKEN_COMPOSITION_CLOSER}${REPLACER_MARKER}${ADDITION_MARKER}"
+declare -r      PLACEHOLDER="_"
+declare -r      DEFAULT_FORMAT="{album_artist}/{orig_year?year+ – }{album}/{disc+-}{track} – {title}.{extension}"
+declare -r  -A  AVAILABLE_TAGS=( [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST]=ARTIST \
                                 [BARCODE]=BARCODE [BPM]=BPM [BY]=BY [CATALOGID]=CATALOGID \
                                 [CATALOGNUMBER]=CATALOGNUMBER [COMPOSER]=COMPOSER [CONDUCTOR]=CONDUCTOR \
                                 [COPYRIGHT]=COPYRIGHT [COUNTRY]=COUNTRY [CREDITS]=CREDITS \
@@ -48,12 +52,10 @@ declare -r -A AVAILABLE_TAGS=(  [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST]
                                 [TRACKNUMBER]=TRACKNUMBER [TRACKTOTAL]=TRACKTOTAL \
                                 [TSRC]=TSRC [TYPE]=TYPE [UPC]=UPC [UPLOADER]=UPLOADER [URL]=URL \
                                 [WEBSITE]=WEBSITE [WMCOLLECTIONID]=WMCOLLECTIONID [WORK]=WORK \
-                                [WWW]=WWW [WWWAUDIOFILE]=WWWAUDIOFILE [WWWAUDIOSOURCE]=WWWAUDIOSOURCE \ 
-                                # from there, aliases
-                                [DISC]=DISCNUMBER [TRACK]=TRACKNUMBER [YEAR]=DATE
-                                # from there, special tags
+                                [WWW]=WWW [WWWAUDIOFILE]=WWWAUDIOFILE [WWWAUDIOSOURCE]=WWWAUDIOSOURCE \
+                                [DISC]=DISCNUMBER [TRACK]=TRACKNUMBER [YEAR]=DATE \
                                 [EXTENSION]=extension )
-
+    
 # TODO comment
 function get_tag_from_formatter () {
     local _formatted="${1/_/}"
