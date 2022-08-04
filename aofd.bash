@@ -21,6 +21,7 @@ source "./utils.bash"
 # Constants
 declare -r    PROBABLY_MISTAKE="; while this might be intended, be advised this is likely a mistake"
 declare -r -a ACCEPTED_TARGET_CODECS=("flac" "vorbis")
+declare -r -a ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
 declare -r -a LOSSY_CODECS=("mp3" "vorbis")
 declare -r -a LOSSLESS_CODECS=("flac" "alac")
 declare -r -a ACCEPTED_SAMPLE_FORMATS=("s16" "s32")
@@ -39,7 +40,7 @@ declare -i target_quality
 declare -i flag_move
 declare -i log_level
 
-###############################################################################
+################################################################################
 # Extract a stream value from the list of available key/value
 # Arguments:
 #   needle!         key to search for.
@@ -48,7 +49,7 @@ declare -i log_level
 #   echoes          value obtained from
 #   0               returned along with extracted value
 #   1               no value found
-###############################################################################
+################################################################################
 function extract_stream_data () {
     local _needle="${1}"
     shift
@@ -64,13 +65,9 @@ function extract_stream_data () {
     return 1
 }
 
-###############################################################################
-# Displays help
-# Arguments:
-#   None
-# Returns:
-#   Nothing
-###############################################################################
+################################################################################
+# Display help
+################################################################################
 function display_help () {
     cat <<EOF
 Usage ${0} --input <DIRECTORY> --output <DIRECTORY> --codec <CODEC> [OPTIONS]...
@@ -79,11 +76,11 @@ Parameters:
     -o  --output <DIRECTORY>        Output folder, into which music files will be transcoded
     -c  --codec <CODEC>             Codec to transcode music files to (must be \"flac\" or \"vorbis\")
     -sf --sample-format <FORMAT>    Sample format. See \`ffprobe -sample_fmts\` for more information.
-                                    Uncompatible with lossy codecs.
+                                    Incompatible with lossy codecs.
     -sr --sample-rate <FREQUENCY>   Sample rate, in Hz. Default value is 48000 Hz.
-                                    Uncompatible with lossy codecs.
+                                    Incompatible with lossy codecs.
     -sr --sample-rate <FREQUENCY>   Quality for transcoding, 1-12 scale. Default value is 8.
-                                    Uncompatible with non-Vorbis codecs.
+                                    Incompatible with non-Vorbis codecs.
     -l  --log-level                 Log level, between 0 and 3, both included.
                                         0: quiet            (only errors)
                                         1: standard         (default)
@@ -95,8 +92,8 @@ Flags:
 EOF
 }
 
-###############################################################################
-# Computes the sample rate. If target sample rate is superior to source,
+################################################################################
+# Compute the sample rate. If target sample rate is superior to source,
 # source sample rate is taken. Otherwise, target rate will be used.
 # If source sample rate is null, target sample rate is used.
 # Arguments:
@@ -104,7 +101,7 @@ EOF
 #   target!     *integer* sample rate of the target file in Hz
 # Returns:
 #   echoes      the final sample rate
-###############################################################################
+################################################################################
 function get_sample_rate () {
     local _source="${1}"
     local _target="${2}"
@@ -120,8 +117,8 @@ function get_sample_rate () {
     fi
 }
 
-###############################################################################
-# Computes the sample format. If target sample format is superior to source,
+################################################################################
+# Compute the sample format. If target sample format is superior to source,
 # source sample format is taken. Otherwise, target format will be used.
 # If source sample format is a lossy-related, defaults to "s16".
 # If source sample format is null, target sample format is used.
@@ -132,7 +129,7 @@ function get_sample_rate () {
 #   target!     *integer* sample format of the target file
 # Returns:
 #   echoes      the final sample format
-###############################################################################
+################################################################################
 function get_sample_fmt () {
     local _source="${1}"
     local _target="${2}"
@@ -152,8 +149,8 @@ function get_sample_fmt () {
     fi
 }
 
-###############################################################################
-# Parses arguments from the command line and sets global parameters.
+################################################################################
+# Parse arguments from the command line and set global parameters.
 # Arguments:
 #   arguments!*         *array* of arguments from the command line
 # Sets globals:
@@ -170,7 +167,7 @@ function get_sample_fmt () {
 #   1                   Unknown option
 #   2                   Bad option
 #   10                  Help displayed
-###############################################################################
+################################################################################
 function parse_arguments () {
     debug "Parsing arguments"
     
@@ -293,12 +290,10 @@ function parse_arguments () {
     debug "Parsed arguments"
 }
 
-###############################################################################
+################################################################################
 # Performs operations on global arguments:
 #   - checks if correctly set for mandatory arguments
 #   - sets defaults for optional arguments
-# Arguments:
-#   none
 # Sets globals:
 #   target_sample_fmt?  *sample format* to transcode source files with
 #   target_sample_rate? *integer* representing the wanted sample rate
@@ -310,7 +305,7 @@ function parse_arguments () {
 #   1                   user-related issue (wrong parameter, refusal...)
 #   2                   missing parameter
 #   3                   external issue (permissions, path exists as file...)
-###############################################################################
+################################################################################
 function check_arguments_validity () {
     # Mandatory arguments check
     if [[ -z ${source+x} || -z ${target+x} || -z ${target_codec+x} ]] ; then
@@ -341,7 +336,7 @@ function check_arguments_validity () {
         return 3
     fi
 
-    # Uncompatible parameters
+    # Incompatible parameters
     if [[ -n "${target_sample_fmt+x}" && "${target_codec}" == "vorbis" ]] ; then
         warn "The sample format parameter is not supported with ${target_codec}"
     fi
@@ -386,27 +381,25 @@ function check_arguments_validity () {
     debug "Flag move: ${flag_move}"
 }
 
-###############################################################################
-# Does the heavy lifting. Will find and transcode music files to the prescripted
+################################################################################
+# Does the heavy lifting. Will find and transcode music files to the prescribed
 # codec using specified parameters
-# Arguments:
-#   none, but
-# Uses globals:
-#   source
-#   target
-#   codec
-#   target_sample_fmt
-#   target_sample_rate
-#   target_quality
-#   flag_move
-#   log_level
+# Parameters
+#  +source!
+#  +target!
+#  +codec!
+#  +target_sample_fmt!
+#  +target_sample_rate!
+#  +target_quality!
+#  +flag_move!
+#  +log_level!
 # Returns:
 #   0                   completed transcoding
 #   1                   no files in source
 #   2                   destination folder is a file
 #   3                   cannot parse source stream data
 #   4                   ffmpeg-related error
-###############################################################################
+################################################################################
 function main () {
     declare -a find_cmd_flags
     find_cmd_flags=(-type f)

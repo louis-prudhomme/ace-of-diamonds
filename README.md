@@ -7,7 +7,7 @@ This is a script leveraging Ffmpeg to mass-transcode files to either Vorbis ou F
 ## Requirements 
 
 Ffmpeg (and Ffprobe) are required. 
-The script was developped using Bash 5 ; it requires a Bash version at least superior to 3.2.75.
+The script was developed using Bash 5 ; it requires a Bash version at least superior to 3.2.75.
 
 ## Usage
 
@@ -20,3 +20,14 @@ $ ./aofd.bash --input ~/Musics/To/Transcode -output ~/Musics/Transcoded -codec v
 Other parameters and options are available ; use the `--help` to learn everything about it.
 
 WARNING: during execution, some files will crash the ffmpeg, thus crashing the script, which will stop execution.
+
+# TODOs
+
+- TODO pre-commit hook engine
+- "rebuts" for AofD
+- rename to diverse Aces
+- redact proper Shellguide
+- remove `eval`s
+- extract `find` command
+- try to add more modularity
+- add flac support to `mover.bash`

@@ -6,20 +6,16 @@
 set -o pipefail
 IFS=$'\n\t'
 
-# Constants
-declare -r -a ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
-
-###############################################################################
+################################################################################
 # Functions to output workflow feedback to user.
-# Arguments:
-#   None
 # Returns:
 #   echoes          text given in parameter
-###############################################################################
+################################################################################
 function err () {
   echo "[Error]: ${*}" >&2
 }
 
+# TODO make log_level and other global parameters common
 function log () {
     if [[ ${log_level} -ge 1 ]] ; then
         echo "[Info ]: ${*}" > /dev/tty
@@ -32,8 +28,8 @@ function debug () {
     fi
 }
 
-###############################################################################
-# Checks if a path exists and is a directory. Optionaly, creates it or prompts
+################################################################################
+# Checks if a path exists and is a directory. Optionally, creates it or prompts
 # choice to user.
 # Arguments:
 #   target!         *path* to check
@@ -45,7 +41,7 @@ function debug () {
 #   1               invalid user choice during prompt
 #   2               user refused creation
 #   3               path led to a file
-###############################################################################
+################################################################################
 function check_path_exists_and_is_directory () {
     local _target="${1}"
     local _should_prompt_decision="${2:-${2:-0}}"
