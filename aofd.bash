@@ -16,9 +16,10 @@
 set -o pipefail
 IFS=$'\n\t'
 
+source "./utils.bash"
+
 # Constants
 declare -r    PROBABLY_MISTAKE="; while this might be intended, be advised this is likely a mistake"
-declare -r -a ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
 declare -r -a ACCEPTED_TARGET_CODECS=("flac" "vorbis")
 declare -r -a LOSSY_CODECS=("mp3" "vorbis")
 declare -r -a LOSSLESS_CODECS=("flac" "alac")
@@ -37,29 +38,6 @@ declare -i target_sample_rate
 declare -i target_quality
 declare -i flag_move
 declare -i log_level
-
-###############################################################################
-# Functions to output workflow feedback to user.
-# Arguments:
-#   None
-# Returns:
-#   echoes          text given in parameter
-###############################################################################
-function err () {
-  echo "[Error]: ${*}" >&2
-}
-
-function log () {
-    if [[ ${log_level} -ge 1 ]] ; then
-        echo "[Info ]: ${*}"
-    fi
-}
-
-function debug () {
-    if [[ ${log_level} -eq 2 ]] ; then
-        echo "[Debug]: ${*}"
-    fi
-}
 
 ###############################################################################
 # Extract a stream value from the list of available key/value
@@ -171,48 +149,6 @@ function get_sample_fmt () {
         else
             echo "${_source}"
         fi
-    fi
-}
-
-###############################################################################
-# Checks if a path exists and is a directory. Optionaly, creates it or prompts
-# choice to user.
-# Arguments:
-#   target!         *path* to check
-#   should_prompt?  *flag* whether prompts user for creation
-#                       0: create folder if missing
-#                       1: prompt user for creation
-# Returns:
-#   0               directory was created
-#   1               invalid user choice during prompt
-#   2               user refused creation
-#   3               path led to a file
-###############################################################################
-function check_path_exists_and_is_directory () {
-    local _target="${1}"
-    local _should_prompt_decision="${2:-${2:-0}}"
-
-    if [[ ! -d ${_target} ]] ; then
-        if [[ -f ${_target} ]] ; then
-            return 3
-        fi
-        if [[ ${_should_prompt_decision} -eq 0 ]] ; then
-            mkdir -p "${_target}"
-            log "Created ${_target}"
-            return 0
-        fi
-
-        echo "${_target} does not exist" > /dev/tty
-        read -p "Do you want to create it ? (y/n) : " -n 1 -r
-        echo > /dev/tty
-        case "${REPLY}" in
-            y|Y )
-                mkdir -p "${_target}"
-                log "Created ${_target}"
-                return 0 ;;
-            n|N ) return 2 ;;
-            * ) return 1 ;;
-        esac
     fi
 }
 
@@ -423,7 +359,7 @@ function check_arguments_validity () {
         readonly target_sample_fmt
     fi
     if [[ -z ${target_quality+x} ]] ; then
-        target_quality=8
+        target_quality=9
         readonly target_quality
     fi
     if [[ -z ${target_sample_rate+x} ]] ; then
@@ -545,6 +481,7 @@ function main () {
         ffmpeg_cmd_flags+=(-v fatal)            # only prompt unrecoverable errors
         ffmpeg_cmd_flags+=(-y)                  # overwrite existing files
         ffmpeg_cmd_flags+=(-i "${input}")       # input file
+        ffmpeg_cmd_flags+=(-vn)                 # strip non-audio streams (see footnote #1)
         ffmpeg_cmd_flags+=(-c:a "${OPTION_CODEC_TO_FFMPEG_CODEC[$target_codec]}")
 
         ## Configure for lossless codec target
