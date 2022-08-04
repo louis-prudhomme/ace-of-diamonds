@@ -23,14 +23,14 @@ declare    output_extension
 
 # CONSTANTS
 ## taking windows limitations in account, to guarantee maximum portability
-declare -r    FORBIDDEN_CHARS='{}/|\<:>?*"' 
+declare -r    FORBIDDEN_CHARS='{}/|\<:>?*"'
 declare -r    REPLACER_MARKER="?"
-#TODO declare -r    ADDITION_MARKER="+"
+declare -r    ADDITION_MARKER="+"
 declare -r    TOKEN_COMPOSITION_OPENER="{"
 declare -r    TOKEN_COMPOSITION_CLOSER="}"
 declare -r    TOKEN_COMPOSITION_CLOSERS="${TOKEN_COMPOSITION_CLOSER}${REPLACER_MARKER}${ADDITION_MARKER}"
 declare -r    PLACEHOLDER="_"
-declare -r    DEFAULT_FORMAT="{album_artist}/{orig_year?year} – {album}/{disc}-{track} – {title}.{extension}"
+declare -r    DEFAULT_FORMAT="{album_artist}/{orig_year?year} – {album}/{disc+-}{track} – {title}.{extension}"
 declare -r -A AVAILABLE_TAGS=(  [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST]=ARTIST \
                                 [BARCODE]=BARCODE [BPM]=BPM [BY]=BY [CATALOGID]=CATALOGID \
                                 [CATALOGNUMBER]=CATALOGNUMBER [COMPOSER]=COMPOSER [CONDUCTOR]=CONDUCTOR \
@@ -75,22 +75,42 @@ function remove_forbidden_chars () {
 
 function build_file_name () {
     #local _aggregated
-    local _should_zap_till_next_closer=0
-    local _is_composing=0
+    ## vars
     local _tokens=()
     local _n=()
     local _i=0
     local _raw
+    ## operation flags
+    local _is_composing=0
+    local _should_zap_till_closer=0
+    local _should_pile_on_till_closer=0
 
     while read -n 1 _latest ; do
         if [[ -z ${_latest} ]] ; then
-            continue;
+            continue
         fi
-        if [[ ${_should_zap_till_next_closer} -eq 1 ]] ; then
+        # if an addendum marker was encountered before,
+        # ignore new tokens until a strict closure marker
+        if [[ ${_should_zap_till_closer} -eq 1 ]] ; then
             if [[ ${_latest} == ${TOKEN_COMPOSITION_CLOSER} ]] ; then
-                _should_zap_till_next_closer=0
+                _should_zap_till_closer=0
             fi
-            continue;
+            continue
+        fi
+        # if an addendum marker was encountered before,
+        # pile all the new tokens until any closure marker
+        if [[ ${_should_pile_on_till_closer} -eq 1 ]] ; then
+            if [[ ${_latest} =~ [${TOKEN_COMPOSITION_CLOSERS}] ]] ; then
+                _should_pile_on_till_closer=0
+
+                # stop handling closure, zap until it ends
+                if [[ ! ${_latest} == ${TOKEN_COMPOSITION_CLOSER} ]] ; then
+                    _should_zap_till_closer=1
+                fi
+            else
+                _tokens+=( "${_latest}" )
+            fi
+            continue
         fi
         
         ## currently not composing a token
@@ -113,25 +133,41 @@ function build_file_name () {
                 _token=$(get_tag_from_formatter "${_aggregated}")
                 case "${?}" in
                     0 ) ;;
-                    1 ) err "Wrong token"; return 1;; # TODO codes
+                    1 ) err "Wrong token ${_aggregated}"; return 1;; # TODO codes
                 esac
-
+                
                 unset _aggregated
                 _raw="$(extract_music_file_data "${_token}")"
                 case "${?}" in
                     0 ) # if value found, stop handling closure
                         _tokens+=( "$(remove_forbidden_chars "${_raw}")" )
-                        if [[ ! ${_latest} == ${TOKEN_COMPOSITION_CLOSER} ]] ; then
-                            _should_zap_till_next_closer=1
-                        fi
+                        
+                        case "${_latest}" in
+                            "${ADDITION_MARKER}" )
+                                _should_pile_on_till_closer=1
+                                ;;
+                            "${REPLACER_MARKER}" ) 
+                                _should_zap_till_closer=1 
+                                ;;
+                            "${TOKEN_COMPOSITION_CLOSER}" )
+                                ;;
+                            *   ) return 1 ;; # TODO error code
+                        esac
                         ;;
                     1 ) # if tag comes up empty, check if a replacer is available
                         # or insert the placeholder character
-                        if [[ ${_latest} == ${TOKEN_COMPOSITION_CLOSER} ]] ; then
-                            _tokens+=( "${PLACEHOLDER}" )
-                        else
-                            _aggregated=""
-                        fi
+                        case "${_latest}" in
+                            "${ADDITION_MARKER}" )
+                                _should_zap_till_closer=1 
+                                ;;
+                            "${REPLACER_MARKER}" ) 
+                                _aggregated=""
+                                ;;
+                            "${TOKEN_COMPOSITION_CLOSER}" )
+                                _tokens+=( "${PLACEHOLDER}" )
+                                ;;
+                            *   ) return 1 ;; # TODO error code
+                        esac
                         ;;
                 esac
                 
