@@ -22,12 +22,37 @@ declare -a input_stream_data
 declare    output_extension
 
 # CONSTANTS
-declare -r    FORBIDDEN_CHARS='{}/|\<:>?*"'
+## taking windows limitations in account, to guarantee maximum portability
+declare -r    FORBIDDEN_CHARS='{}/|\<:>?*"' 
+declare -r    REPLACER_MARKER="?"
+#TODO declare -r    ADDITION_MARKER="+"
 declare -r    TOKEN_COMPOSITION_OPENER="{"
 declare -r    TOKEN_COMPOSITION_CLOSER="}"
+declare -r    TOKEN_COMPOSITION_CLOSERS="${TOKEN_COMPOSITION_CLOSER}${REPLACER_MARKER}${ADDITION_MARKER}"
 declare -r    PLACEHOLDER="_"
-declare -r    DEFAULT_FORMAT="{album_artist}/{date} – {album}/{disc}-{track} – {title}.{extension}"
-declare -r -A AVAILABLE_TAGS=( [EXTENSION]=extension [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST]=ARTIST [BARCODE]=BARCODE [BPM]=BPM [BY]=BY [CATALOGID]=CATALOGID [CATALOGNUMBER]=CATALOGNUMBER [COMPOSER]=COMPOSER [CONDUCTOR]=CONDUCTOR [COPYRIGHT]=COPYRIGHT [COUNTRY]=COUNTRY [CREDITS]=CREDITS [DATE]=DATE [DESCRIPTION]=DESCRIPTION [DISCNUMBER]=DISCNUMBER [DISC]=DISCNUMBER [DISCTOTAL]=DISCTOTAL [ENCODEDBY]=ENCODEDBY [GAIN]=GAIN [GENRE]=GENRE [GROUPING]=GROUPING [ID]=ID [ISRC]=ISRC [LABEL]=LABEL [LANGUAGE]=LANGUAGE [LENGTH]=LENGTH [LOCATION]=LOCATION [LYRICS]=LYRICS [MCDI]=MCDI [MEDIA]=MEDIA [MEDIATYPE]=MEDIATYPE [NORM]=NORM [ORGANIZATION]=ORGANIZATION [ORIGYEAR]=ORIGYEAR [PEAK]=PEAK [PERFORMER]=PERFORMER [PGAP]=PGAP [PMEDIA]=PMEDIA [PROVIDER]=PROVIDER [PUBLISHER]=PUBLISHER [RELEASECOUNTRY]=RELEASECOUNTRY [SMPB]=SMPB [STYLE]=STYLE [TBPM]=TBPM [TITLE]=TITLE [TLEN]=TLEN [TMED]=TMED [TOOL]=TOOL [TOTALDISCS]=TOTALDISCS [TOTALTRACKS]=TOTALTRACKS [TRACKNUMBER]=TRACKNUMBER [TRACK]=TRACKNUMBER [TRACKTOTAL]=TRACKTOTAL [TSRC]=TSRC [TYPE]=TYPE [UPC]=UPC [UPLOADER]=UPLOADER [URL]=URL [WEBSITE]=WEBSITE [WMCOLLECTIONID]=WMCOLLECTIONID [WORK]=WORK [WWW]=WWW [WWWAUDIOFILE]=WWWAUDIOFILE [WWWAUDIOSOURCE]=WWWAUDIOSOURCE )
+declare -r    DEFAULT_FORMAT="{album_artist}/{orig_year?year} – {album}/{disc}-{track} – {title}.{extension}"
+declare -r -A AVAILABLE_TAGS=(  [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST]=ARTIST \
+                                [BARCODE]=BARCODE [BPM]=BPM [BY]=BY [CATALOGID]=CATALOGID \
+                                [CATALOGNUMBER]=CATALOGNUMBER [COMPOSER]=COMPOSER [CONDUCTOR]=CONDUCTOR \
+                                [COPYRIGHT]=COPYRIGHT [COUNTRY]=COUNTRY [CREDITS]=CREDITS \
+                                [DATE]=DATE [DESCRIPTION]=DESCRIPTION [DISCNUMBER]=DISCNUMBER \
+                                [DISCTOTAL]=DISCTOTAL [ENCODEDBY]=ENCODEDBY [GAIN]=GAIN \
+                                [GENRE]=GENRE [GROUPING]=GROUPING [ID]=ID [ISRC]=ISRC \
+                                [LABEL]=LABEL [LANGUAGE]=LANGUAGE [LENGTH]=LENGTH [LOCATION]=LOCATION \
+                                [LYRICS]=LYRICS [MCDI]=MCDI [MEDIA]=MEDIA [MEDIATYPE]=MEDIATYPE \
+                                [NORM]=NORM [ORGANIZATION]=ORGANIZATION [ORIGYEAR]=ORIGYEAR \
+                                [PEAK]=PEAK [PERFORMER]=PERFORMER [PGAP]=PGAP [PMEDIA]=PMEDIA \
+                                [PROVIDER]=PROVIDER [PUBLISHER]=PUBLISHER [RELEASECOUNTRY]=RELEASECOUNTRY \
+                                [SMPB]=SMPB [STYLE]=STYLE [TBPM]=TBPM [TITLE]=TITLE [TLEN]=TLEN \
+                                [TMED]=TMED [TOOL]=TOOL [TOTALDISCS]=TOTALDISCS [TOTALTRACKS]=TOTALTRACKS \
+                                [TRACKNUMBER]=TRACKNUMBER [TRACKTOTAL]=TRACKTOTAL \
+                                [TSRC]=TSRC [TYPE]=TYPE [UPC]=UPC [UPLOADER]=UPLOADER [URL]=URL \
+                                [WEBSITE]=WEBSITE [WMCOLLECTIONID]=WMCOLLECTIONID [WORK]=WORK \
+                                [WWW]=WWW [WWWAUDIOFILE]=WWWAUDIOFILE [WWWAUDIOSOURCE]=WWWAUDIOSOURCE \ 
+                                # from there, aliases
+                                [DISC]=DISCNUMBER [TRACK]=TRACKNUMBER [YEAR]=DATE
+                                # from there, special tags
+                                [EXTENSION]=extension )
 
 # TODO comment
 function get_tag_from_formatter () {
@@ -50,6 +75,7 @@ function remove_forbidden_chars () {
 
 function build_file_name () {
     #local _aggregated
+    local _should_zap_till_next_closer=0
     local _is_composing=0
     local _tokens=()
     local _n=()
@@ -60,10 +86,16 @@ function build_file_name () {
         if [[ -z ${_latest} ]] ; then
             continue;
         fi
+        if [[ ${_should_zap_till_next_closer} -eq 1 ]] ; then
+            if [[ ${_latest} == ${TOKEN_COMPOSITION_CLOSER} ]] ; then
+                _should_zap_till_next_closer=0
+            fi
+            continue;
+        fi
         
         ## currently not composing a token
         if [[ -z ${_aggregated+x} ]] ; then
-            if [[ ${_latest} == "${TOKEN_COMPOSITION_CLOSER}" ]] ; then
+            if [[ ${_latest} == "${TOKEN_COMPOSITION_CLOSERS}" ]] ; then
                 return 1 # TODO codes
             elif [[ ${_latest} == "${TOKEN_COMPOSITION_OPENER}" ]] ; then
                 _aggregated=""
@@ -72,20 +104,38 @@ function build_file_name () {
             fi
         ## currently composing a token
         else
-            if [[ ${_latest} == "${TOKEN_COMPOSITION_CLOSER}" ]] ; then
+            if [[ ${_latest} =~ [${TOKEN_COMPOSITION_CLOSERS}] ]] ; then
                 if [[ -z ${_aggregated+x} \
                    || ${_latest} == "${TOKEN_COMPOSITION_OPENER}" ]] ; then
                     return 1 # TODO codes
                 fi
+                
                 _token=$(get_tag_from_formatter "${_aggregated}")
                 case "${?}" in
                     0 ) ;;
                     1 ) err "Wrong token"; return 1;; # TODO codes
                 esac
-                _raw="$(extract_music_file_data "${_token}")"
-                _tokens+=( "$(remove_forbidden_chars "${_raw}")" )
-                unset _raw
+
                 unset _aggregated
+                _raw="$(extract_music_file_data "${_token}")"
+                case "${?}" in
+                    0 ) # if value found, stop handling closure
+                        _tokens+=( "$(remove_forbidden_chars "${_raw}")" )
+                        if [[ ! ${_latest} == ${TOKEN_COMPOSITION_CLOSER} ]] ; then
+                            _should_zap_till_next_closer=1
+                        fi
+                        ;;
+                    1 ) # if tag comes up empty, check if a replacer is available
+                        # or insert the placeholder character
+                        if [[ ${_latest} == ${TOKEN_COMPOSITION_CLOSER} ]] ; then
+                            _tokens+=( "${PLACEHOLDER}" )
+                        else
+                            _aggregated=""
+                        fi
+                        ;;
+                esac
+                
+                unset _raw
             else
                 _aggregated="${_aggregated}${_latest}"
             fi
@@ -122,8 +172,7 @@ function extract_music_file_data () {
             return 0
         fi
     done
-
-    echo "${PLACEHOLDER}"
+    
     return 1
 }
 
@@ -334,13 +383,13 @@ function main () {
             3 ) err "Path exists but is a file rather than directory"; return 2 ;;
         esac
 
-        if [[ ${flag_move} -eq 1 ]] ; then
-            mv "${input}" "${destination}"
-            debug "Moved ${input} to ${destination}"
-        else
-            cp "${input}" "${destination}"
-            debug "Copied ${input} to ${destination}"
-        fi
+#        if [[ ${flag_move} -eq 1 ]] ; then
+#            mv "${input}" "${destination}"
+#            debug "Moved ${input} to ${destination}"
+#        else
+#            cp "${input}" "${destination}"
+#            debug "Copied ${input} to ${destination}"
+#        fi
         log "Done !"
 
         (( music_files_handled_count+=1 ))
