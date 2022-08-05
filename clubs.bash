@@ -1,6 +1,12 @@
 #!/usr/local/bin/bash
 
-# TODO more useful debug logs
+# This script helps organize music files (either FLAC or Vorbis (OGG)).
+# Return codes:
+# 0     Execution terminated faithfully
+# 1     User-related issue (wrong parameters...)
+# 2     External issue (directory permission...)
+# 3     Cannot parse source file data
+# 4     Build-related problem
 
 # Safeguards
 #   -u not specified because of associative array use
@@ -13,15 +19,12 @@ source "./utils.bash"
 # Globals
 ## Once set, they should be read-only
 ## Parameters
-declare     source
-declare     target
-declare     format
-declare     placeholder
-declare -i  flag_move
-declare -i  log_level
-## Execution
-declare -A  input_stream_data
-declare     output_extension
+declare    source
+declare    target
+declare    format
+declare    placeholder
+declare -i flag_move
+declare -i log_level
 
 # CONSTANTS
 ## taking windows limitations in account, to guarantee maximum portability
@@ -33,25 +36,27 @@ declare -r      TOKEN_COMPOSITION_CLOSER="}"
 declare -r      TOKEN_COMPOSITION_CLOSERS="${TOKEN_COMPOSITION_CLOSER}${REPLACER_MARKER}${ADDITION_MARKER}"
 declare -r      DEFAULT_PLACEHOLDER="_"
 declare -r      DEFAULT_FORMAT="{album_artist}/{orig_year?year+ – }{album}/{disc+-}{track?track_number} – {title}.{extension}"
-declare -r  -A  AVAILABLE_TAGS=( [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST]=ARTIST \
-                                [BARCODE]=BARCODE [BPM]=BPM [BY]=BY [CATALOGID]=CATALOGID \
-                                [CATALOGNUMBER]=CATALOGNUMBER [COMPOSER]=COMPOSER [CONDUCTOR]=CONDUCTOR \
-                                [COPYRIGHT]=COPYRIGHT [COUNTRY]=COUNTRY [CREDITS]=CREDITS \
-                                [DATE]=DATE [DESCRIPTION]=DESCRIPTION [DISCNUMBER]=DISCNUMBER \
-                                [DISCTOTAL]=DISCTOTAL [ENCODEDBY]=ENCODEDBY [GAIN]=GAIN \
-                                [GENRE]=GENRE [GROUPING]=GROUPING [ID]=ID [ISRC]=ISRC \
-                                [LABEL]=LABEL [LANGUAGE]=LANGUAGE [LENGTH]=LENGTH [LOCATION]=LOCATION \
-                                [LYRICS]=LYRICS [MCDI]=MCDI [MEDIA]=MEDIA [MEDIATYPE]=MEDIATYPE \
-                                [NORM]=NORM [ORGANIZATION]=ORGANIZATION [ORIGYEAR]=ORIGYEAR \
-                                [PEAK]=PEAK [PERFORMER]=PERFORMER [PGAP]=PGAP [PMEDIA]=PMEDIA \
+declare -r  -A  AVAILABLE_TAGS=( [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST]=ARTIST                  \
+                                [BARCODE]=BARCODE [BPM]=BPM [BY]=BY [CATALOGID]=CATALOGID                 \
+                                [CATALOGNUMBER]=CATALOGNUMBER [COMPOSER]=COMPOSER [CONDUCTOR]=CONDUCTOR   \
+                                [COPYRIGHT]=COPYRIGHT [COUNTRY]=COUNTRY [CREDITS]=CREDITS                 \
+                                [DATE]=DATE [DESCRIPTION]=DESCRIPTION [DISCNUMBER]=DISCNUMBER             \
+                                [DISCTOTAL]=DISCTOTAL [ENCODEDBY]=ENCODEDBY [GAIN]=GAIN                   \
+                                [GENRE]=GENRE [GROUPING]=GROUPING [ID]=ID [ISRC]=ISRC                     \
+                                [LABEL]=LABEL [LANGUAGE]=LANGUAGE [LENGTH]=LENGTH [LOCATION]=LOCATION     \
+                                [LYRICS]=LYRICS [MCDI]=MCDI [MEDIA]=MEDIA [MEDIATYPE]=MEDIATYPE           \
+                                [NORM]=NORM [ORGANIZATION]=ORGANIZATION [ORIGYEAR]=ORIGYEAR               \
+                                [PEAK]=PEAK [PERFORMER]=PERFORMER [PGAP]=PGAP [PMEDIA]=PMEDIA             \
                                 [PROVIDER]=PROVIDER [PUBLISHER]=PUBLISHER [RELEASECOUNTRY]=RELEASECOUNTRY \
-                                [SMPB]=SMPB [STYLE]=STYLE [TBPM]=TBPM [TITLE]=TITLE [TLEN]=TLEN \
+                                [SMPB]=SMPB [STYLE]=STYLE [TBPM]=TBPM [TITLE]=TITLE [TLEN]=TLEN           \
                                 [TMED]=TMED [TOOL]=TOOL [TOTALDISCS]=TOTALDISCS [TOTALTRACKS]=TOTALTRACKS \
-                                [TRACKNUMBER]=TRACKNUMBER [TRACKTOTAL]=TRACKTOTAL \
-                                [TSRC]=TSRC [TYPE]=TYPE [UPC]=UPC [UPLOADER]=UPLOADER [URL]=URL \
-                                [WEBSITE]=WEBSITE [WMCOLLECTIONID]=WMCOLLECTIONID [WORK]=WORK \
-                                [WWW]=WWW [WWWAUDIOFILE]=WWWAUDIOFILE [WWWAUDIOSOURCE]=WWWAUDIOSOURCE \
-                                [DISC]=DISCNUMBER [TRACK]=TRACK [YEAR]=DATE \
+                                [TRACKNUMBER]=TRACKNUMBER [TRACKTOTAL]=TRACKTOTAL                         \
+                                [TSRC]=TSRC [TYPE]=TYPE [UPC]=UPC [UPLOADER]=UPLOADER [URL]=URL           \
+                                [WEBSITE]=WEBSITE [WMCOLLECTIONID]=WMCOLLECTIONID [WORK]=WORK             \
+                                [WWW]=WWW [WWWAUDIOFILE]=WWWAUDIOFILE [WWWAUDIOSOURCE]=WWWAUDIOSOURCE     \
+                                # aliases
+                                [DISC]=DISCNUMBER [TRACK]=TRACK [YEAR]=DATE                               \
+                                # special tags
                                 [EXTENSION]=extension )
 
 ################################################################################
@@ -129,7 +134,6 @@ function build_file_name () {
     ## vars
     local _raw
     local _tokens=()
-    #local _aggregated will be set at some point
     ## operation flags
     local _should_zap_till_closer=0
     local _should_pile_on_till_closer=0
@@ -146,7 +150,7 @@ function build_file_name () {
             fi
             continue
         fi
-        # if an addendum marker was encountered before,
+        # if a replacer marker was encountered before,
         # pile all the new tokens until any closure marker
         if [[ ${_should_pile_on_till_closer} -eq 1 ]] ; then
             if [[ ${_latest} =~ [${TOKEN_COMPOSITION_CLOSERS}] ]] ; then
@@ -187,15 +191,19 @@ function build_file_name () {
                 
                 unset _aggregated
                 _raw="$(extract_music_file_data "${_token}")"
+
                 case "${?}" in
                     0 ) # if value found, stop handling closure
+                        debug "Extracted '${_raw}' with ${_token}"
                         _tokens+=( "$(remove_forbidden_chars "${_raw}")" )
                         
                         case "${_latest}" in
                             "${ADDITION_MARKER}" )
+                                debug "Addendum detected, stockpiling next characters"
                                 _should_pile_on_till_closer=1
                                 ;;
-                            "${REPLACER_MARKER}" ) 
+                            "${REPLACER_MARKER}" )
+                                debug "Replacer detected but a value was present"
                                 _should_zap_till_closer=1 
                                 ;;
                             "${TOKEN_COMPOSITION_CLOSER}" )
@@ -204,11 +212,14 @@ function build_file_name () {
                         ;;
                     1 ) # if tag comes up empty, check if a replacer is available
                         # or insert the placeholder character
+                        debug "Key ${_token} not found"
                         case "${_latest}" in
                             "${ADDITION_MARKER}" )
+                                debug "Addendum detected, but no base value was present"
                                 _should_zap_till_closer=1 
                                 ;;
-                            "${REPLACER_MARKER}" ) 
+                            "${REPLACER_MARKER}" )
+                                debug "Replacer detected, analyzing next token"
                                 _aggregated=""
                                 ;;
                             "${TOKEN_COMPOSITION_CLOSER}" )
@@ -227,34 +238,6 @@ function build_file_name () {
 
     printf "%s" "${_tokens[@]}"
     return 0
-}
-
-################################################################################
-# Extract a piece of data about a music file value from the list of
-# available key/value.
-# Use globals:
-# Arguments:
-#   needle!               *string* to search for.
-#  +input_stream_data!*   *key/value*-formatted music file data
-# Returns:
-#   echoes          extracted value
-#   0               nominal
-#   1               no value found
-################################################################################
-function extract_music_file_data () {
-    local _needle="${1}"
-
-    if [[ ${_needle} == "extension" ]] ; then
-        echo "${output_extension}"
-        return 0
-    fi
-
-    if [[ -n ${input_stream_data[$_needle]} ]] ; then
-        echo "${input_stream_data[$_needle]}"
-        return 0
-    fi
-
-    return 1
 }
 
 ################################################################################
@@ -414,30 +397,6 @@ function check_arguments_validity () {
 ################################################################################
 # Does the heavy lifting. Will find and organize music files using the provided
 # format.
-# Sets global:
-#   input_stream_data
-# Returns:
-#   0                   completed transcoding
-#   1                   no files in source
-#   2                   destination folder is a file
-################################################################################
-function populate_target_data () {
-    input_stream_data=()
-
-    for _data in "${@}" ; do
-        local _key="${_data%=*}"
-              _key="${_key^^}"
-              _key="${_key/[_ ]/}"
-        local _value="${_data#*=}"
-
-        debug "Parsed data: '[${_key}]=${_value}'"
-        input_stream_data+=( [${_key}]="${_value}" )
-    done
-}
-
-################################################################################
-# Does the heavy lifting. Will find and organize music files using the provided
-# format.
 # Uses globals:
 #   source
 #   target
@@ -449,6 +408,7 @@ function populate_target_data () {
 #   0                   completed transcoding
 #   1                   no files in source
 #   2                   destination folder is a file
+#   3                   problem parsing file data
 ################################################################################
 function main () {
     declare -a find_cmd_flags
@@ -477,22 +437,16 @@ function main () {
     # Heavy lifting
     for input in $(eval "${formatted_find_command}") ; do
         debug "Probing ${input}"
-        
+
         # Analyze existing music file
-        output_extension="${input##*.}"
-
-        raw_stream_data=( $(ffprobe                        \
-                               -v fatal                    \
-                               -print_format default       \
-                               -show_streams:a "${input}"  \
-                               | grep -E '^TAG:'           \
-                               | sed s/TAG://) )
-        populate_target_data "${raw_stream_data[@]}"
-
+        ffprobe_music_file "${input}" 1 # into RAW_MUSIC_FILE_STREAM
+        music_data_to_dictionary "${RAW_MUSIC_FILE_STREAM[@]}" # into DICTIONARY
         case "${?}" in
-            0 ) ;;
-            * ) return 3 ;;
+            0) ;;
+            1) return 3 ;;
         esac
+        declare -n "input_stream_data=DICTIONARY"
+        export output_extension="${input#*.}"
 
         # Compute file name and destination
         destination=$(build_file_name)
@@ -511,13 +465,13 @@ function main () {
         esac
 
         # Move or copy file to destination
-        # if [[ ${flag_move} -eq 1 ]] ; then
-        #     mv "${input}" "${destination}"
-        #     debug "Moved ${input} to ${destination}"
-        # else
-        #     cp "${input}" "${destination}"
-        #     debug "Copied ${input} to ${destination}"
-        # fi
+        if [[ ${flag_move} -eq 1 ]] ; then
+            mv "${input}" "${destination}"
+            debug "Moved ${input} to ${destination}"
+        else
+            cp "${input}" "${destination}"
+            debug "Copied ${input} to ${destination}"
+        fi
         log "Done !"
 
         # Stats
@@ -557,6 +511,6 @@ case "${?}" in
     1 ) err "No files in source";               exit 0;;
     2 ) err "Destination folder is a file";     exit 2;;
     3 ) err "Cannot parse source file data";    exit 3;;
-    4 ) err "Parser-related error";             exit 4;;
+    4 ) err "Builder-related error";            exit 4;;
     * ) err "Unrecognized error";               exit 255 ;;
 esac

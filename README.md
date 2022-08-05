@@ -43,5 +43,6 @@ $ ./clubs.bash --input ~/Musics/To/Organize -output ~/Musics/Organized
 - "rebuts" for `diamonds`
 - redact proper Shellguide
 - remove `eval`s
-- extract `find` command
 - try to add more modularity
+  - arguments
+  - extract `find` command

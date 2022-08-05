@@ -19,7 +19,6 @@ source "./utils.bash"
 # Constants
 declare -r    PROBABLY_MISTAKE="; while this might be intended, be advised this is likely a mistake"
 declare -r -a ACCEPTED_TARGET_CODECS=("flac" "vorbis")
-declare -r -a ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
 declare -r -a LOSSY_CODECS=("mp3" "vorbis")
 declare -r -a LOSSLESS_CODECS=("flac" "alac")
 declare -r -a ACCEPTED_SAMPLE_FORMATS=("s16" "s32")
@@ -37,31 +36,6 @@ declare -i target_sample_rate
 declare -i target_quality
 declare -i flag_move
 declare -i log_level
-
-################################################################################
-# Extract a stream value from the list of available key/value
-# Arguments:
-#   needle!         key to search for.
-#   haystack!*      key/value stream data. 'ini' or 'flat' formats are assumed.
-# Returns:
-#   echoes          value obtained from
-#   0               returned along with extracted value
-#   1               no value found
-################################################################################
-function extract_stream_data () {
-    local _needle="${1}"
-    shift
-    local _haystack=("${@}")
-
-    for stream_data in "${_haystack[@]}" ; do
-        if [[ ${stream_data} =~ ${_needle}=\"([a-zA-Z0-9/]+)\" ]] ; then
-            echo "${BASH_REMATCH[1]}"
-            return 0
-        fi
-    done
-
-    return 1
-}
 
 ################################################################################
 # Display help
@@ -413,7 +387,7 @@ function main () {
     formatted_find_command="find ${source} ${formatted_cmd_parameters}"
     debug "Find command is \`${formatted_find_command}\`"
 
-    # FIXME
+    # FIXME
     music_files_count=$(eval "${formatted_find_command}" | wc -l)
     #readarray -d music_files < <(find "${source}" ${find_cmd_flags[*]})
     debug "${music_files_count} files found"
@@ -438,21 +412,24 @@ function main () {
 
         # Analyze existing music file
         debug "Probing ${input}"
-        input_stream_data=$(ffprobe                     \
-                            -v fatal                    \
-                            -print_format flat          \
-                            -show_streams:a "${input}"  \
-                            | grep stream.0)
+
+        ffprobe_music_file "${input}" # into RAW_MUSIC_FILE_STREAM
+        music_data_to_dictionary "${RAW_MUSIC_FILE_STREAM[@]}" # into DICTIONARY
+        case "${?}" in
+            0) ;;
+            1) return 3 ;;
+        esac
+        declare -n "input_stream_data=DICTIONARY"
 
         ## Codec
-        source_codec=$(extract_stream_data "codec_name" "${input_stream_data[@]}")
+        source_codec=$(extract_music_file_data "codec_name")
         case "${?}" in
             0 ) debug "Source codec is ${source_codec}" ;;
             1 ) err "Cannot parse codec of ${input}"; return 3 ;;
         esac
 
         ## Sample Rate
-        source_sample_rate=$(extract_stream_data "sample_rate" "${input_stream_data[@]}")
+        source_sample_rate=$(extract_music_file_data "sample_rate")
         case "${?}" in
             0 ) debug "Source sample rate is ${source_sample_rate} Hz" ;;
             1 ) err "Cannot parse sample rate of ${input}"; return 3 ;;
@@ -460,7 +437,7 @@ function main () {
 
         ## For lossless codecs, sample format
         if [[ ${LOSSLESS_CODECS[$source_codec]} ]] ; then
-            source_sample_fmt=$(extract_stream_data "sample_fmt" "${input_stream_data[@]}")
+            source_sample_fmt=$(extract_music_file_data "sample_fmt")
             case "${?}" in
                 0 ) debug "Source sample format is ${source_sample_fmt}" ;;
                 1 ) err "Cannot parse sample format of ${input}"; return 3 ;;

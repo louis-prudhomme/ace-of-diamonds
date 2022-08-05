@@ -6,6 +6,15 @@
 set -o pipefail
 IFS=$'\n\t'
 
+# Constants
+declare -r -a ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
+declare -A  input_stream_data
+declare     output_extension
+
+export ACCEPTED_SOURCE_CODECS
+export input_stream_data
+export output_extension
+
 ################################################################################
 # Functions to output workflow feedback to user.
 # Returns:
@@ -68,4 +77,103 @@ function check_path_exists_and_is_directory () {
             * ) return 1 ;;
         esac
     fi
+}
+
+################################################################################
+# Analyzes a music file using ffprobe.
+# Parameters:
+#   input!                  *path* of the file to analyze
+#   should_keep_tags_only?  *flag* to keep tag only. defaults to 0.
+# Global companion:
+#   RAW_MUSIC_FILE_STREAM  use this global var to obtain the result afterwards.
+################################################################################
+declare -a RAW_MUSIC_FILE_STREAM
+export RAW_MUSIC_FILE_STREAM
+function ffprobe_music_file () {
+    RAW_MUSIC_FILE_STREAM=()
+    local _input="${1}"
+    local _should_keep_tags_only="${2:-${2:-0}}"
+    if [[ ${_should_keep_tags_only} -eq 1 ]] ; then
+        local _grep_key="TAG:"
+    else
+        local _grep_key="="
+    fi
+
+    mapfile -t RAW_MUSIC_FILE_STREAM < <(ffprobe                        \
+                                           -v fatal                     \
+                                           -print_format default        \
+                                           -show_streams:a "${_input}"  \
+                                           | grep "${_grep_key}"        \
+                                           | sed s/TAG://               \
+                                           | sed s/DISPOSITION://)
+
+    for i in "${!RAW_MUSIC_FILE_STREAM[@]}" ; do
+        if [[ -z ${RAW_MUSIC_FILE_STREAM[$i]} ]] ; then
+            unset 'RAW_MUSIC_FILE_STREAM[$i]';
+        fi
+    done
+
+    # FIXME
+    debug "Probed ${#RAW_MUSIC_FILE_STREAM[@]} tags"
+}
+
+################################################################################
+# Format an ffprobe-obtained stream of data to a dictionary. "default" format
+# is expected for the stream.
+# Global companion:
+#   DICTIONARY  use this global var to obtain the result afterwards.
+# Return:
+#   0           situation nominal
+#   1           key was probably corrupted
+################################################################################
+declare -A DICTIONARY
+export DICTIONARY
+function music_data_to_dictionary () {
+    DICTIONARY=()
+
+    for _data in "${@}" ; do
+        if [[ -z ${_data} ]] ; then
+          return 1
+        fi
+
+        local _key="${_data%=*}"
+              _key="${_key^^}"
+              _key="${_key/[_ ]/}"
+        local _value="${_data#*=}"
+
+        debug "Parsed data: '[${_key}]=${_value}'"
+        DICTIONARY+=( [${_key}]="${_value}" )
+        case "${?}" in
+            0) ;;
+            1) return 1 ;;
+        esac
+    done
+}
+
+################################################################################
+# Extract a piece of data about a music file value from the list of
+# available key/value.
+# Use globals:
+# Arguments:
+#   needle!               *string* to search for.
+#  +input_stream_data!*   *key/value*-formatted music file data
+# Returns:
+#   echoes          extracted value
+#   0               nominal
+#   1               no value found
+################################################################################
+function extract_music_file_data () {
+    local _needle="${1}"
+
+    if [[ ${_needle} == "extension" ]] ; then
+        echo "${output_extension}"
+        return 0
+    fi
+
+    if [[ -n ${input_stream_data[$_needle]} ]] ; then
+        echo "${input_stream_data[$_needle]}"
+        return 0
+    fi
+
+    return 1
 }
