@@ -12,15 +12,11 @@ All scripts were developed using Bash 5 ; they require a Bash version at least s
 
 MacOS, notably, ships an outdated Bash version which will fail to run these scripts (unless preemptively modified).
 
-### Diamonds
-
 [Ffmpeg](https://ffmpeg.org/download.html) (and Ffprobe) are required.
 
-### Clubs
-
-[Vorbis-Tools](https://github.com/xiph/vorbis-tools) are required (for _vorbiscomment_).
-
 ## Usage
+
+### Diamonds
 
 Invoke the script with the `input`, `output` and `codec` parameters (at least).
 
@@ -32,12 +28,20 @@ Other parameters and options are available ; use the `--help` to learn everythin
 
 **WARNING**: during execution, some files will crash ffmpeg, thus crashing the script, which will stop execution.
 
+## Clubs 
+
+Invoke the script with the `input` and `output` parameters (at least).
+
+```bash
+$ ./clubs.bash --input ~/Musics/To/Organize -output ~/Musics/Organized 
+```
+
 # TODOs
 
 - TODO pre-commit hook engine
+- add dry run
 - "rebuts" for `diamonds`
 - redact proper Shellguide
 - remove `eval`s
 - extract `find` command
 - try to add more modularity
-- add flac support to `clubs`

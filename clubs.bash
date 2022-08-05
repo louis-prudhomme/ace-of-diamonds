@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/local/bin/bash
 
 # TODO more useful debug logs
 
@@ -20,7 +20,7 @@ declare     placeholder
 declare -i  flag_move
 declare -i  log_level
 ## Execution
-declare -a  input_stream_data
+declare -A  input_stream_data
 declare     output_extension
 
 # CONSTANTS
@@ -32,7 +32,7 @@ declare -r      TOKEN_COMPOSITION_OPENER="{"
 declare -r      TOKEN_COMPOSITION_CLOSER="}"
 declare -r      TOKEN_COMPOSITION_CLOSERS="${TOKEN_COMPOSITION_CLOSER}${REPLACER_MARKER}${ADDITION_MARKER}"
 declare -r      DEFAULT_PLACEHOLDER="_"
-declare -r      DEFAULT_FORMAT="{album_artist}/{orig_year?year+ – }{album}/{disc+-}{track} – {title}.{extension}"
+declare -r      DEFAULT_FORMAT="{album_artist}/{orig_year?year+ – }{album}/{disc+-}{track?track_number} – {title}.{extension}"
 declare -r  -A  AVAILABLE_TAGS=( [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST]=ARTIST \
                                 [BARCODE]=BARCODE [BPM]=BPM [BY]=BY [CATALOGID]=CATALOGID \
                                 [CATALOGNUMBER]=CATALOGNUMBER [COMPOSER]=COMPOSER [CONDUCTOR]=CONDUCTOR \
@@ -51,7 +51,7 @@ declare -r  -A  AVAILABLE_TAGS=( [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST
                                 [TSRC]=TSRC [TYPE]=TYPE [UPC]=UPC [UPLOADER]=UPLOADER [URL]=URL \
                                 [WEBSITE]=WEBSITE [WMCOLLECTIONID]=WMCOLLECTIONID [WORK]=WORK \
                                 [WWW]=WWW [WWWAUDIOFILE]=WWWAUDIOFILE [WWWAUDIOSOURCE]=WWWAUDIOSOURCE \
-                                [DISC]=DISCNUMBER [TRACK]=TRACKNUMBER [YEAR]=DATE \
+                                [DISC]=DISCNUMBER [TRACK]=TRACK [YEAR]=DATE \
                                 [EXTENSION]=extension )
 
 ################################################################################
@@ -232,9 +232,10 @@ function build_file_name () {
 ################################################################################
 # Extract a piece of data about a music file value from the list of
 # available key/value.
+# Use globals:
 # Arguments:
-#   needle!         *string* to search for.
-#  +haystack!*      *key/value*-formatted music file data
+#   needle!               *string* to search for.
+#  +input_stream_data!*   *key/value*-formatted music file data
 # Returns:
 #   echoes          extracted value
 #   0               nominal
@@ -248,16 +249,11 @@ function extract_music_file_data () {
         return 0
     fi
 
-    shift
-    local _haystack=("${input_stream_data[@]}")
+    if [[ -n ${input_stream_data[$_needle]} ]] ; then
+        echo "${input_stream_data[$_needle]}"
+        return 0
+    fi
 
-    for stream_data in "${_haystack[@]}" ; do
-        if [[ ${stream_data} =~ ${_needle}=(.+)$ ]] ; then
-            echo "${BASH_REMATCH[1]}"
-            return 0
-        fi
-    done
-    
     return 1
 }
 
@@ -418,9 +414,35 @@ function check_arguments_validity () {
 ################################################################################
 # Does the heavy lifting. Will find and organize music files using the provided
 # format.
+# Sets global:
+#   input_stream_data
+# Returns:
+#   0                   completed transcoding
+#   1                   no files in source
+#   2                   destination folder is a file
+################################################################################
+function populate_target_data () {
+    input_stream_data=()
+
+    for _data in "${@}" ; do
+        local _key="${_data%=*}"
+              _key="${_key^^}"
+              _key="${_key/[_ ]/}"
+        local _value="${_data#*=}"
+
+        debug "Parsed data: '[${_key}]=${_value}'"
+        input_stream_data+=( [${_key}]="${_value}" )
+    done
+}
+
+################################################################################
+# Does the heavy lifting. Will find and organize music files using the provided
+# format.
 # Uses globals:
 #   source
 #   target
+#   format
+#   placeholder
 #   flag_move
 #   log_level
 # Returns:
@@ -443,7 +465,7 @@ function main () {
     formatted_find_command="find ${source} ${formatted_cmd_parameters}"
     debug "Find command is \`${formatted_find_command}\`"
 
-    # FIXME
+    # FIXME
     music_files_count=$(eval "${formatted_find_command}" | wc -l)
     #readarray -d music_files < <(find "${source}" ${find_cmd_flags[*]})
     debug "${music_files_count} files found"
@@ -458,7 +480,15 @@ function main () {
         
         # Analyze existing music file
         output_extension="${input##*.}"
-        input_stream_data+=( $(vorbiscomment "${input}") )
+
+        raw_stream_data=( $(ffprobe                        \
+                               -v fatal                    \
+                               -print_format default       \
+                               -show_streams:a "${input}"  \
+                               | grep -E '^TAG:'           \
+                               | sed s/TAG://) )
+        populate_target_data "${raw_stream_data[@]}"
+
         case "${?}" in
             0 ) ;;
             * ) return 3 ;;
@@ -481,16 +511,16 @@ function main () {
         esac
 
         # Move or copy file to destination
-        if [[ ${flag_move} -eq 1 ]] ; then
-            mv "${input}" "${destination}"
-            debug "Moved ${input} to ${destination}"
-        else
-            cp "${input}" "${destination}"
-            debug "Copied ${input} to ${destination}"
-        fi
+        # if [[ ${flag_move} -eq 1 ]] ; then
+        #     mv "${input}" "${destination}"
+        #     debug "Moved ${input} to ${destination}"
+        # else
+        #     cp "${input}" "${destination}"
+        #     debug "Copied ${input} to ${destination}"
+        # fi
         log "Done !"
 
-        # Stats
+        # Stats
         (( music_files_handled_count+=1 ))
         ratio=$(( (100 * music_files_handled_count) / music_files_count ))
         log "Handled ${ratio}% of all files (${music_files_handled_count}/${music_files_count})"
@@ -498,7 +528,7 @@ function main () {
         unset ratio
         unset output_extension
         unset destination
-        unset input_stream_data
+        unset raw_stream_data
     done
     log "All done, congratulations!"
 }
