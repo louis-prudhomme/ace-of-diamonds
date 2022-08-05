@@ -1,33 +1,43 @@
-# Ace of Diamonds
+# Aces
 
 ## What is this ?
 
-This is a script leveraging Ffmpeg to mass-transcode files to either Vorbis ou FLAC.
+This is a Bash script toolbox, aiming to transcode and organize music files.
+- diamonds: transcode music files to _vorbis_ and _flac_.
+- clubs: organize music file following a pattern.
 
 ## Requirements 
 
-Ffmpeg (and Ffprobe) are required. 
-The script was developed using Bash 5 ; it requires a Bash version at least superior to 3.2.75.
+All scripts were developed using Bash 5 ; they require a Bash version at least superior to 3.2.75.
+
+MacOS, notably, ships an outdated Bash version which will fail to run these scripts (unless preemptively modified).
+
+### Diamonds
+
+[Ffmpeg](https://ffmpeg.org/download.html) (and Ffprobe) are required.
+
+### Clubs
+
+[Vorbis-Tools](https://github.com/xiph/vorbis-tools) are required (for _vorbiscomment_).
 
 ## Usage
 
 Invoke the script with the `input`, `output` and `codec` parameters (at least).
 
 ```bash
-$ ./aofd.bash --input ~/Musics/To/Transcode -output ~/Musics/Transcoded -codec vorbis
+$ ./diamonds.bash --input ~/Musics/To/Transcode -output ~/Musics/Transcoded -codec vorbis
 ```
 
 Other parameters and options are available ; use the `--help` to learn everything about it.
 
-WARNING: during execution, some files will crash the ffmpeg, thus crashing the script, which will stop execution.
+**WARNING**: during execution, some files will crash ffmpeg, thus crashing the script, which will stop execution.
 
 # TODOs
 
 - TODO pre-commit hook engine
-- "rebuts" for AofD
-- rename to diverse Aces
+- "rebuts" for `diamonds`
 - redact proper Shellguide
 - remove `eval`s
 - extract `find` command
 - try to add more modularity
-- add flac support to `mover.bash`
+- add flac support to `clubs`

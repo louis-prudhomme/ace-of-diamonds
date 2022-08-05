@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# TODO add "rebuts"
-
 # This script helps transcode music files to either FLAC or Vorbis (OGG).
 # Return codes:
 # 0     Execution terminated faithfully
