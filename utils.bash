@@ -20,11 +20,13 @@ export output_extension
 # Returns:
 #   echoes          text given in parameter
 ################################################################################
+declare -i log_level
+export log_level
+
 function err () {
   echo "[Error]: ${*}" >&2
 }
 
-# TODO make log_level and other global parameters common
 function log () {
     if [[ ${log_level} -ge 1 ]] ; then
         echo "[Info ]: ${*}" > /dev/tty
@@ -99,7 +101,7 @@ function ffprobe_music_file () {
         local _grep_key="="
     fi
 
-    mapfile -t RAW_MUSIC_FILE_STREAM < <(ffprobe                        \
+    readarray -t RAW_MUSIC_FILE_STREAM < <(ffprobe                        \
                                            -v fatal                     \
                                            -print_format default        \
                                            -show_streams:a "${_input}"  \
@@ -113,7 +115,6 @@ function ffprobe_music_file () {
         fi
     done
 
-    # FIXME
     debug "Probed ${#RAW_MUSIC_FILE_STREAM[@]} tags"
 }
 
@@ -176,4 +177,24 @@ function extract_music_file_data () {
     fi
 
     return 1
+}
+
+################################################################################
+# Formats path with trailing slash if needeed.
+# Arguments:
+#   base!           *path* to format.
+# Returns:
+#   echoes          formatted path
+################################################################################
+function add_trailing_slash () {
+    local _base="${1}"
+
+    _last=${_base:(-1)}
+    debug "${_last}"
+
+    if [[ ! ${_last} == "/" ]] ; then
+      echo "${_base}/"
+    else
+      echo "${_base}"
+    fi
 }

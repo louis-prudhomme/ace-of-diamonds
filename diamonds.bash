@@ -35,7 +35,6 @@ declare    target_sample_fmt
 declare -i target_sample_rate
 declare -i target_quality
 declare -i flag_move
-declare -i log_level
 
 ################################################################################
 # Display help
@@ -150,8 +149,8 @@ function parse_arguments () {
 
         case "${1}" in
             -i | --input)
+                # not readonly because of subsequent formatting
                 source="${2}"
-                readonly source
                 shift 2
                 ;;
             -o | --output)
@@ -161,8 +160,11 @@ function parse_arguments () {
                 ;;
             -c | --codec)
                 found=0
+                local _tentative
+                _tentative="$(echo "${2}" | tr '[:upper:]' '[:lower:]')"
+
                 for codec in "${ACCEPTED_TARGET_CODECS[@]}"; do
-                    if [[ ${codec} == "$(echo "${2}" | tr '[:upper:]' '[:lower:]')" ]] ; then
+                    if [[ ${codec} == "${_tentative}" ]] ; then
                         found=1
                     fi
                 done
@@ -342,6 +344,8 @@ function check_arguments_validity () {
         readonly flag_move
     fi
 
+    source=$(add_trailing_slash "${source}")
+    readonly source
 
     # Debug vitals
     debug "Input: ${source}"
@@ -383,14 +387,12 @@ function main () {
         fi
     done
 
-    formatted_cmd_parameters="$(printf "%s " "${find_cmd_flags[@]}")"
-    formatted_find_command="find ${source} ${formatted_cmd_parameters}"
-    debug "Find command is \`${formatted_find_command}\`"
+    debug "Find command is \`find '${source}' ${find_cmd_flags[*]}\`"
 
-    # FIXME
-    music_files_count=$(eval "${formatted_find_command}" | wc -l)
-    #readarray -d music_files < <(find "${source}" ${find_cmd_flags[*]})
+    readarray -t music_files < <(find "${_source}" "${find_cmd_flags[@]}")
+    declare -r -i music_files_count=${#music_files[@]}
     debug "${music_files_count} files found"
+
     if [[ ${music_files_count} -eq 0 ]] ; then
         err "No files in ${source}"
         return 1
@@ -398,7 +400,7 @@ function main () {
 
     music_files_handled_count=0
     # Heavy lifting
-    for input in $(eval "${formatted_find_command}") ; do
+    for input in "${music_files[@]}" ; do
         # Compute destination folder
         destination="${input/$source/$target}"
         destination="${destination%.*}.${OPTION_CODEC_TO_EXTENSION[$target_codec]}"
@@ -419,23 +421,24 @@ function main () {
             0) ;;
             1) return 3 ;;
         esac
+        # var DICTIONARY is referenced as input_stream_data
         declare -n "input_stream_data=DICTIONARY"
 
-        ## Codec
+        # Codec
         source_codec=$(extract_music_file_data "codec_name")
         case "${?}" in
             0 ) debug "Source codec is ${source_codec}" ;;
             1 ) err "Cannot parse codec of ${input}"; return 3 ;;
         esac
 
-        ## Sample Rate
+        # Sample Rate
         source_sample_rate=$(extract_music_file_data "sample_rate")
         case "${?}" in
             0 ) debug "Source sample rate is ${source_sample_rate} Hz" ;;
             1 ) err "Cannot parse sample rate of ${input}"; return 3 ;;
         esac
 
-        ## For lossless codecs, sample format
+        # For lossless codecs, sample format
         if [[ ${LOSSLESS_CODECS[$source_codec]} ]] ; then
             source_sample_fmt=$(extract_music_file_data "sample_fmt")
             case "${?}" in
@@ -452,7 +455,7 @@ function main () {
         ffmpeg_cmd_flags+=(-vn)                 # strip non-audio streams (see footnote #1)
         ffmpeg_cmd_flags+=(-c:a "${OPTION_CODEC_TO_FFMPEG_CODEC[$target_codec]}")
 
-        ## Configure for lossless codec target
+        # Configure for lossless codec target
         if [[ ${LOSSLESS_CODECS[$target_codec]} -eq 1 ]] ; then
             sample_fmt=$(get_sample_fmt "${source_sample_fmt}" "${target_sample_fmt}")
             ffmpeg_cmd_flags+=(-sample_fmt "${sample_fmt}")
@@ -469,7 +472,7 @@ function main () {
             fi
         fi
 
-        ## Configure for lossy codec target
+        # Configure for lossy codec target
         if [[ "${LOSSY_CODECS[$target_codec]}" -eq 1 ]] ; then
             if [[ ${target_codec} == "vorbis" ]] ; then
                 ffmpeg_cmd_flags+=(-q:a "${target_quality}")

@@ -24,7 +24,6 @@ declare    target
 declare    format
 declare    placeholder
 declare -i flag_move
-declare -i log_level
 
 # CONSTANTS
 ## taking windows limitations in account, to guarantee maximum portability
@@ -131,10 +130,10 @@ EOF
 #   2               invalid tag
 ################################################################################
 function build_file_name () {
-    ## vars
+    # vars
     local _raw
     local _tokens=()
-    ## operation flags
+    # operation flags
     local _should_zap_till_closer=0
     local _should_pile_on_till_closer=0
 
@@ -166,7 +165,7 @@ function build_file_name () {
             continue
         fi
         
-        ## currently not composing a token
+        # currently not composing a token
         if [[ -z ${_aggregated+x} ]] ; then
             if [[ ${_latest} == "${TOKEN_COMPOSITION_CLOSERS}" ]] ; then
                 return 1
@@ -175,7 +174,7 @@ function build_file_name () {
             else
                 _tokens+=( "${_latest}" )
             fi
-        ## currently composing a token
+        # currently composing a token
         else
             if [[ ${_latest} =~ [${TOKEN_COMPOSITION_CLOSERS}] ]] ; then
                 if [[ -z ${_aggregated+x} \
@@ -266,8 +265,8 @@ function parse_arguments () {
 
         case "${1}" in
             -i | --input)
+                # not readonly because of subsequent formatting
                 source="${2}"
-                readonly source
                 shift 2
                 ;;
             -o | --output)
@@ -386,6 +385,9 @@ function check_arguments_validity () {
         readonly flag_move
     fi
 
+    source="$(add_trailing_slash "${source}")"
+    readonly source
+
     # Debug vitals
     debug "Input: ${source}"
     debug "Output: ${target}"
@@ -415,27 +417,24 @@ function main () {
     find_cmd_flags=(-type f)
     for extension in "${ACCEPTED_SOURCE_CODECS[@]}" ; do
         if [[ ${extension} == "${ACCEPTED_SOURCE_CODECS[-1]}" ]] ; then
-            find_cmd_flags+=(-name \"*."${extension}"\")
+            find_cmd_flags+=(-name *."${extension}")
         else
-            find_cmd_flags+=(-name \"*."${extension}"\" -o)
+            find_cmd_flags+=(-name *."${extension}" -o)
         fi
     done
+    debug "Find command is \`find '${source}' ${find_cmd_flags[*]}\`"
 
-    formatted_cmd_parameters="$(printf "%s " "${find_cmd_flags[@]}")"
-    formatted_find_command="find ${source} ${formatted_cmd_parameters}"
-    debug "Find command is \`${formatted_find_command}\`"
-
-    # FIXME
-    music_files_count=$(eval "${formatted_find_command}" | wc -l)
-    #readarray -d music_files < <(find "${source}" ${find_cmd_flags[*]})
+    readarray -t music_files < <(find "${source}" "${find_cmd_flags[@]}")
+    declare -r -i music_files_count=${#music_files[@]}
     debug "${music_files_count} files found"
-    if [[ ${music_files_count} -eq 0 ]] ; then
+
+    if [[ ${#music_files} -eq 0 ]] ; then
         return 1
     fi
 
     music_files_handled_count=0
     # Heavy lifting
-    for input in $(eval "${formatted_find_command}") ; do
+    for input in "${music_files[@]}" ; do
         debug "Probing ${input}"
 
         # Analyze existing music file
@@ -445,6 +444,8 @@ function main () {
             0) ;;
             1) return 3 ;;
         esac
+
+        # var DICTIONARY is referenced as input_stream_data
         declare -n "input_stream_data=DICTIONARY"
         export output_extension="${input#*.}"
 
