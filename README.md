@@ -18,31 +18,35 @@ MacOS, notably, ships an outdated Bash version which will fail to run these scri
 
 ### Diamonds
 
+Helps you transcode music files from various formats to either OGG (Vorbis) or Flac. 
+
 Invoke the script with the `input`, `output` and `codec` parameters (at least).
 
 ```bash
-$ ./diamonds.bash --input ~/Musics/To/Transcode -output ~/Musics/Transcoded -codec vorbis
+$ ./diamonds.bash --input "~/Musics/To/Transcode" -output "~/Musics/Transcoded" -codec vorbis
 ```
 
 Other parameters and options are available ; use the `--help` to learn everything about it.
 
 **WARNING**: during execution, some files will crash ffmpeg, thus crashing the script, which will stop execution.
 
-## Clubs 
+### Clubs 
+
+Helps you sort OGG and Flac music files in your filesystem, according to their music tags. 
 
 Invoke the script with the `input` and `output` parameters (at least).
 
 ```bash
-$ ./clubs.bash --input ~/Musics/To/Organize -output ~/Musics/Organized 
+$ ./clubs.bash --input "~/Musics/To/Organize" -output "~/Musics/Organized" 
 ```
+
+Other parameters and options are available ; use the `--help` to learn everything about it.
 
 # TODOs
 
-- TODO pre-commit hook engine
+- pre-commit hook TODO engine
 - add dry run
 - "rebuts" for `diamonds`
 - redact proper Shellguide
-- remove `eval`s
 - try to add more modularity
-  - arguments
   - extract `find` command
