@@ -8,8 +8,8 @@ IFS=$'\n\t'
 
 # Constants
 declare -r -a ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
-declare -A  input_stream_data
-declare     output_extension
+declare -A    input_stream_data
+declare       output_extension
 
 export ACCEPTED_SOURCE_CODECS
 export input_stream_data
@@ -90,7 +90,7 @@ function check_path_exists_and_is_directory () {
 #   RAW_MUSIC_FILE_STREAM  use this global var to obtain the result afterwards.
 ################################################################################
 declare -a RAW_MUSIC_FILE_STREAM
-export RAW_MUSIC_FILE_STREAM
+export     RAW_MUSIC_FILE_STREAM
 function ffprobe_music_file () {
     RAW_MUSIC_FILE_STREAM=()
     local _input="${1}"
@@ -149,6 +149,32 @@ function music_data_to_dictionary () {
             1) return 1 ;;
         esac
     done
+}
+
+################################################################################
+# Find music files in a specified directory and populate a global var.
+# Global companion:
+#   MUSIC_FILES   use this global var to obtain the result afterwards.
+################################################################################
+declare -a MUSIC_FILES
+export     MUSIC_FILES
+function find_music_files () {
+    local _source="${1}"
+
+    declare -a find_cmd_flags
+    MUSIC_FILES=()
+
+    find_cmd_flags=(-type f)
+    for extension in "${ACCEPTED_SOURCE_CODECS[@]}" ; do
+        if [[ ${extension} == "${ACCEPTED_SOURCE_CODECS[-1]}" ]] ; then
+            find_cmd_flags+=(-name *."${extension}")
+        else
+            find_cmd_flags+=(-name *."${extension}" -o)
+        fi
+    done
+
+    debug "Find command is \`find '${_source}' ${find_cmd_flags[*]}\`"
+    readarray -t MUSIC_FILES < <(find "${_source}" "${find_cmd_flags[@]}")
 }
 
 ################################################################################

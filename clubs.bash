@@ -413,28 +413,17 @@ function check_arguments_validity () {
 #   3                   problem parsing file data
 ################################################################################
 function main () {
-    declare -a find_cmd_flags
-    find_cmd_flags=(-type f)
-    for extension in "${ACCEPTED_SOURCE_CODECS[@]}" ; do
-        if [[ ${extension} == "${ACCEPTED_SOURCE_CODECS[-1]}" ]] ; then
-            find_cmd_flags+=(-name *."${extension}")
-        else
-            find_cmd_flags+=(-name *."${extension}" -o)
-        fi
-    done
-    debug "Find command is \`find '${source}' ${find_cmd_flags[*]}\`"
-
-    readarray -t music_files < <(find "${source}" "${find_cmd_flags[@]}")
-    declare -r -i music_files_count=${#music_files[@]}
+    find_music_files "${source}"
+    declare -r -i music_files_count=${#MUSIC_FILES[@]}
     debug "${music_files_count} files found"
 
-    if [[ ${#music_files} -eq 0 ]] ; then
+    if [[ ${#music_files_count} -eq 0 ]] ; then
         return 1
     fi
 
     music_files_handled_count=0
     # Heavy lifting
-    for input in "${music_files[@]}" ; do
+    for input in "${MUSIC_FILES[@]}" ; do
         debug "Probing ${input}"
 
         # Analyze existing music file

@@ -377,20 +377,8 @@ function check_arguments_validity () {
 #   4                   ffmpeg-related error
 ################################################################################
 function main () {
-    declare -a find_cmd_flags
-    find_cmd_flags=(-type f)
-    for extension in "${ACCEPTED_SOURCE_CODECS[@]}" ; do
-        if [[ ${extension} == "${ACCEPTED_SOURCE_CODECS[-1]}" ]] ; then
-            find_cmd_flags+=(-name \"*."${extension}"\")
-        else
-            find_cmd_flags+=(-name \"*."${extension}"\" -o)
-        fi
-    done
-
-    debug "Find command is \`find '${source}' ${find_cmd_flags[*]}\`"
-
-    readarray -t music_files < <(find "${_source}" "${find_cmd_flags[@]}")
-    declare -r -i music_files_count=${#music_files[@]}
+    find_music_files "${source}"
+    declare -r -i music_files_count=${#MUSIC_FILES[@]}
     debug "${music_files_count} files found"
 
     if [[ ${music_files_count} -eq 0 ]] ; then
@@ -400,7 +388,7 @@ function main () {
 
     music_files_handled_count=0
     # Heavy lifting
-    for input in "${music_files[@]}" ; do
+    for input in "${MUSIC_FILES[@]}" ; do
         # Compute destination folder
         destination="${input/$source/$target}"
         destination="${destination%.*}.${OPTION_CODEC_TO_EXTENSION[$target_codec]}"

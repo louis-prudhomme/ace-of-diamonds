@@ -48,5 +48,3 @@ Other parameters and options are available ; use the `--help` to learn everythin
 - add dry run
 - "rebuts" for `diamonds`
 - redact proper Shellguide
-- try to add more modularity
-  - extract `find` command
