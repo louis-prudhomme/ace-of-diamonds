@@ -34,7 +34,8 @@ declare    target_codec
 declare    target_sample_fmt
 declare -i target_sample_rate
 declare -i target_quality
-declare -i flag_move
+declare -i should_move_files
+declare -i is_dry_run
 
 ################################################################################
 # Display help
@@ -58,6 +59,8 @@ Parameters:
                                         2: verbose          (debug logs)
                                         3: HYPER-verbose    (set -x)
 Flags:
+    -dy --dry-run                   Does not touch or create any file, but prompts what would
+                                    have been done.
     -mv --move                      Deletes original files after transcoding.
     -h  --help                      Displays help
 EOF
@@ -131,7 +134,8 @@ function get_sample_fmt () {
 #   target_sample_fmt?  *sample format* to transcode source files with
 #   target_sample_rate? *integer* representing the wanted sample rate
 #   target_quality?     *integer* representing the wanted quality
-#   flag_move?          *flag* indicating to move / delete files
+#   should_move_files?  *flag* indicating to move / delete files
+#   is_dry_run?         *flag* whether should not do any real file mingling
 #   log_level?          *integer* representing the logging level
 # Returns:
 #   0                   arguments parsed faithfully
@@ -228,9 +232,13 @@ function parse_arguments () {
                 shift 2
                 ;;
             -mv | --move)
-                flag_move=1
-                readonly flag_move
+                should_move_files=1
+                readonly should_move_files
                 shift
+                ;;
+            -dy | --dry)
+                is_dry_run=1
+                readonly is_dry_run
                 ;;
             -h | --help)
                 display_help
@@ -272,7 +280,8 @@ function parse_arguments () {
 #   target_sample_fmt?  *sample format* to transcode source files with
 #   target_sample_rate? *integer* representing the wanted sample rate
 #   target_quality?     *integer* representing the wanted quality
-#   flag_move?          *flag* indicating to move / delete files
+#   is_dry_run?         *flag* whether to ignore all execution
+#   should_move_files?  *flag* indicating to move / delete files
 #   log_level?          *integer* representing the logging level
 # Returns
 #   0                   situation nominal
@@ -339,9 +348,13 @@ function check_arguments_validity () {
         log_level=1
         readonly log_level
     fi
-    if [[ -z ${flag_move+x} ]] ; then
-        flag_move=0
-        readonly flag_move
+    if [[ -z ${should_move_files+x} ]] ; then
+        should_move_files=0
+        readonly should_move_files
+    fi
+    if [[ -z ${is_dry_run+x} ]] ; then
+        is_dry_run=0
+        readonly is_dry_run
     fi
 
     source=$(add_trailing_slash "${source}")
@@ -354,7 +367,7 @@ function check_arguments_validity () {
     debug "Target sample format: ${target_sample_fmt}"
     debug "Target sample rate: ${target_sample_rate}"
     debug "Log level: ${log_level}"
-    debug "Flag move: ${flag_move}"
+    debug "Flag move: ${should_move_files}"
 }
 
 ################################################################################
@@ -367,7 +380,8 @@ function check_arguments_validity () {
 #  +target_sample_fmt!
 #  +target_sample_rate!
 #  +target_quality!
-#  +flag_move!
+#  +should_move_files!
+#  +is_dry_run!
 #  +log_level!
 # Returns:
 #   0                   completed transcoding
@@ -475,24 +489,34 @@ function main () {
             && ${source_codec} == "${target_codec}" \
             && ${source_sample_fmt} == "${sample_fmt}" \
             && ${source_sample_rate} == "${sample_rate}" ]] ; then
-            if [[ ${flag_move} -eq 1 ]] ; then
-                mv "${input}" "${destination}"
+            if [[ ${should_move_files} -eq 1 ]] ; then
+                if [[ ${should_move_files} -eq 1
+                    && ${is_dry_run} -eq 0 ]] ; then
+                    mv "${input}" "${destination}"
+                fi
                 debug "Moved ${input} to ${destination}"
             else
-                cp "${input}" "${destination}"
+                if [[ ${should_move_files} -eq 1
+                    && ${is_dry_run} -eq 0 ]] ; then
+                    cp "${input}" "${destination}"
+                fi
                 debug "Copied ${input} to ${destination}"
             fi
         else
             formatted_cmd_parameters=$(printf "%s " "${ffmpeg_cmd_flags[@]}")
             debug "Ffmpeg command is \`ffmpeg ${formatted_cmd_parameters}\`"
 
-            potential_error=$(ffmpeg "${ffmpeg_cmd_flags[@]}" 2>&1)
+            if [[ ${should_move_files} -eq 0 ]] ; then
+                potential_error=$(ffmpeg "${ffmpeg_cmd_flags[@]}" 2>&1)
+            fi
             case "${?}" in
                 0 ) debug "Transcoded ${input}" ;;
                 * ) err "${potential_error}"; return 4 ;;
             esac
-            if [[ ${flag_move} -eq 1 ]] ; then
-                rm "${input}"
+            if [[ ${should_move_files} -eq 1 ]] ; then
+                if [[ ${is_dry_run} -eq 0 ]] ; then
+                    rm "${input}"
+                fi
                 debug "Deleted ${destination}"
             fi
         fi

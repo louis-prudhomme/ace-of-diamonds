@@ -45,6 +45,8 @@ Other parameters and options are available ; use the `--help` to learn everythin
 # TODOs
 
 - pre-commit hook TODO engine
+- add safety for ffmpeg + youtube-dl presence
+- music file cutter
 - add dry run
 - "rebuts" for `diamonds`
 - redact proper Shellguide

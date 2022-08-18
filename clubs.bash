@@ -23,7 +23,8 @@ declare    source
 declare    target
 declare    format
 declare    placeholder
-declare -i flag_move
+declare -i should_move_files
+declare -i is_dry_run
 
 # CONSTANTS
 ## taking windows limitations in account, to guarantee maximum portability
@@ -247,7 +248,7 @@ function build_file_name () {
 #   source!             *path* to source directory
 #   target!             *path* to target directory
 #   format?             *string* modeling the expected file path & name
-#   flag_move?          *flag* indicating to move / delete files
+#   should_move_files?          *flag* indicating to move / delete files
 #   log_level?          *integer* representing the logging level
 # Returns:
 #   0                   arguments parsed faithfully
@@ -285,8 +286,8 @@ function parse_arguments () {
                 shift 2
                 ;;
             -mv | --move)
-                flag_move=1
-                readonly flag_move
+                should_move_files=1
+                readonly should_move_files
                 shift 
                 ;;
             -h | --help)
@@ -328,7 +329,7 @@ function parse_arguments () {
 # Sets globals:
 #   format?             *pattern* with which file name will be formatted
 #   placeholder?        *char* to replace forbidden characters with
-#   flag_move?          *flag* indicating to move / delete files
+#   should_move_files?          *flag* indicating to move / delete files
 #   log_level?          *integer* representing the logging level
 # Returns
 #   0                   situation nominal
@@ -380,9 +381,9 @@ function check_arguments_validity () {
         log_level=1
         readonly log_level
     fi
-    if [[ -z ${flag_move+x} ]] ; then
-        flag_move=0
-        readonly flag_move
+    if [[ -z ${should_move_files+x} ]] ; then
+        should_move_files=0
+        readonly should_move_files
     fi
 
     source="$(add_trailing_slash "${source}")"
@@ -393,7 +394,7 @@ function check_arguments_validity () {
     debug "Output: ${target}"
     debug "Placeholder: ${placeholder}"
     debug "Log level: ${log_level}"
-    debug "Flag move: ${flag_move}"
+    debug "Flag move: ${should_move_files}"
 }
 
 ################################################################################
@@ -404,7 +405,7 @@ function check_arguments_validity () {
 #   target
 #   format
 #   placeholder
-#   flag_move
+#   should_move_files
 #   log_level
 # Returns:
 #   0                   completed transcoding
@@ -455,11 +456,15 @@ function main () {
         esac
 
         # Move or copy file to destination
-        if [[ ${flag_move} -eq 1 ]] ; then
-            mv "${input}" "${destination}"
+        if [[ ${should_move_files} -eq 1 ]] ; then
+            if [[ ${should_move_files} -eq 1 ]] ; then
+                mv "${input}" "${destination}"
+            fi
             debug "Moved ${input} to ${destination}"
         else
-            cp "${input}" "${destination}"
+            if [[ ${should_move_files} -eq 1 ]] ; then
+                cp "${input}" "${destination}"
+            fi
             debug "Copied ${input} to ${destination}"
         fi
         log "Done !"
