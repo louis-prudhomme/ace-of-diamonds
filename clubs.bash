@@ -23,8 +23,6 @@ declare    source
 declare    target
 declare    format
 declare    placeholder
-declare -i should_move_files
-declare -i is_dry_run
 
 # CONSTANTS
 ## taking windows limitations in account, to guarantee maximum portability
@@ -58,6 +56,15 @@ declare -r  -A  AVAILABLE_TAGS=( [ALBUM]=ALBUM [ALBUMARTIST]=ALBUMARTIST [ARTIST
                                 [DISC]=DISCNUMBER [TRACK]=TRACK [YEAR]=DATE                               \
                                 # special tags
                                 [EXTENSION]=extension )
+HELP_TEXT="Usage ${0} --input <DIRECTORY> --output <DIRECTORY> --format <PATTERN> [OPTIONS]...
+Parameters:
+    -i  --input <DIRECTORY>         Input folder, containing the music files
+    -o  --output <DIRECTORY>        Output folder, into which music files will be transcoded
+    -f  --format <PATTERN>          Pattern used to format file names.
+                                    Default value is ${DEFAULT_FORMAT}.
+    -p  --placeholder <CHAR>        Placeholder character used to replace forbidden characters.
+                                    Default value is ${DEFAULT_PLACEHOLDER}."
+readonly HELP_TEXT
 
 ################################################################################
 # Format a raw key by removing underscores and uppercase the string.
@@ -93,30 +100,6 @@ function remove_forbidden_chars () {
     local _subject="${1}"
 
     echo "${_subject//[$FORBIDDEN_CHARS]/$placeholder}"
-}
-
-################################################################################
-# Display help
-################################################################################
-function display_help () {
-    cat <<EOF
-Usage ${0} --input <DIRECTORY> --output <DIRECTORY> --format <PATTERN> [OPTIONS]...
-Parameters:
-    -i  --input <DIRECTORY>         Input folder, containing the music files
-    -o  --output <DIRECTORY>        Output folder, into which music files will be transcoded
-    -f  --format <PATTERN>          Pattern used to format file names.
-                                    Default value is ${DEFAULT_FORMAT}.
-    -p  --placeholder <CHAR>        Placeholder character used to replace forbidden characters.
-                                    Default value is ${DEFAULT_PLACEHOLDER}.
-    -l  --log-level                 Log level, between 0 and 3, both included.
-                                        0: quiet            (only errors)
-                                        1: standard         (default)
-                                        2: verbose          (debug logs)
-                                        3: HYPER-verbose    (set -x)
-Flags:
-    -mv --move                      Delete original files after transcoding.
-    -h  --help                      Display help
-EOF
 }
 
 ################################################################################
@@ -285,34 +268,18 @@ function parse_arguments () {
                 readonly placeholder
                 shift 2
                 ;;
-            -mv | --move)
-                should_move_files=1
-                readonly should_move_files
-                shift 
-                ;;
-            -h | --help)
-                display_help
-                return 10
-                ;;
-            -l | --log-level)
-                if [[ ! "${2}" =~ ^[0-3]$ ]] ; then
-                    err "The log level parameter only accepts integer values (between 0-3, both included)"
-                    return 2
-                fi
-                if [[ ${2} -eq 3 ]] ; then
-                    set -x
-                fi
-                log_level=${2}
-                readonly log_level
-                shift 2
-                ;;
             --) # End of all options
                 shift
                 break
                 ;;
             -*) # Unknown
-                err "Unknown option: ${1}"
-                return 1
+                parse_common_argument "${@}"
+                case "${?}" in
+                    0 ) debug "Parsed common argument ${1}"; shift "${SHIFT}" ;;
+                    1 ) return 1  ;;
+                    2 ) break     ;;
+                    10) return 10 ;;
+                esac
                 ;;
             *)  # No more options
                 break
@@ -329,8 +296,6 @@ function parse_arguments () {
 # Sets globals:
 #   format?             *pattern* with which file name will be formatted
 #   placeholder?        *char* to replace forbidden characters with
-#   should_move_files?          *flag* indicating to move / delete files
-#   log_level?          *integer* representing the logging level
 # Returns
 #   0                   situation nominal
 #   1                   user-related issue (wrong parameter, refusal...)
@@ -377,14 +342,6 @@ function check_arguments_validity () {
         placeholder="${DEFAULT_PLACEHOLDER}"
         readonly placeholder
     fi
-    if [[ -z ${log_level+x} ]] ; then
-        log_level=1
-        readonly log_level
-    fi
-    if [[ -z ${should_move_files+x} ]] ; then
-        should_move_files=0
-        readonly should_move_files
-    fi
 
     source="$(add_trailing_slash "${source}")"
     readonly source
@@ -393,8 +350,6 @@ function check_arguments_validity () {
     debug "Input: ${source}"
     debug "Output: ${target}"
     debug "Placeholder: ${placeholder}"
-    debug "Log level: ${log_level}"
-    debug "Flag move: ${should_move_files}"
 }
 
 ################################################################################
@@ -485,12 +440,14 @@ function main () {
 # Core
 parse_arguments "${@}"
 case "${?}" in
-    0 | 10 ) ;;
+    0 ) ;;
     1 ) err "Unrecognized argument";    exit 1;;
     2 ) err "Bad argument";             exit 1;;
+    10) debug "Help was displayed";     exit 0;;
     * ) err "Unrecognized error";       exit 255 ;;
 esac
 
+check_common_arguments
 check_arguments_validity
 case "${?}" in
     0 ) ;;

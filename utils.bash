@@ -6,22 +6,46 @@
 set -o pipefail
 IFS=$'\n\t'
 
-# Constants
-declare -r -a ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
-declare -A    input_stream_data
-declare       output_extension
+# Input parameters
+declare -i  should_move_files
+export      should_move_files
 
-export ACCEPTED_SOURCE_CODECS
-export input_stream_data
-export output_extension
+declare -i  is_dry_run
+export      is_dry_run
+
+# Execution variables
+declare -A  input_stream_data
+export      input_stream_data
+
+declare     output_extension
+export      output_extension
+
+declare     HELP_TEXT
+export      HELP_TEXT
+
+# Constants
+declare -r -a   ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
+export          ACCEPTED_SOURCE_CODECS
+
+declare -r COMMON_HELP_TEXT="Common parameters:
+    -l  --log-level                 Log level, between 0 and 3, both included.
+                                        0: quiet            (only errors)
+                                        1: standard         (default)
+                                        2: verbose          (debug logs)
+                                        3: HYPER-verbose    (set -x)
+Common flags:
+    -dy --dry-run                   Do not touch or create any file, but prompt what would
+                                    have been done.
+    -mv --move                      Delete original files.
+    -h  --help                      Display help"
 
 ################################################################################
 # Functions to output workflow feedback to user.
 # Returns:
 #   echoes          text given in parameter
 ################################################################################
-declare -i log_level
-export log_level
+declare -i  log_level
+export      log_level
 
 function err () {
   echo "[Error]: ${*}" >&2
@@ -91,6 +115,7 @@ function check_path_exists_and_is_directory () {
 ################################################################################
 declare -a RAW_MUSIC_FILE_STREAM
 export     RAW_MUSIC_FILE_STREAM
+
 function ffprobe_music_file () {
     RAW_MUSIC_FILE_STREAM=()
     local _input="${1}"
@@ -127,8 +152,9 @@ function ffprobe_music_file () {
 #   0           situation nominal
 #   1           key was probably corrupted
 ################################################################################
-declare -A DICTIONARY
-export DICTIONARY
+declare -A  DICTIONARY
+export      DICTIONARY
+
 function music_data_to_dictionary () {
     DICTIONARY=()
 
@@ -158,6 +184,7 @@ function music_data_to_dictionary () {
 ################################################################################
 declare -a MUSIC_FILES
 export     MUSIC_FILES
+
 function find_music_files () {
     local _source="${1}"
 
@@ -180,9 +207,9 @@ function find_music_files () {
 ################################################################################
 # Extract a piece of data about a music file value from the list of
 # available key/value.
-# Use globals:
 # Arguments:
 #   needle!               *string* to search for.
+# Use globals:
 #  +input_stream_data!*   *key/value*-formatted music file data
 # Returns:
 #   echoes          extracted value
@@ -206,7 +233,7 @@ function extract_music_file_data () {
 }
 
 ################################################################################
-# Formats path with trailing slash if needeed.
+# Formats path with trailing slash if needed.
 # Arguments:
 #   base!           *path* to format.
 # Returns:
@@ -214,13 +241,105 @@ function extract_music_file_data () {
 ################################################################################
 function add_trailing_slash () {
     local _base="${1}"
-
     _last=${_base:(-1)}
-    debug "${_last}"
 
     if [[ ! ${_last} == "/" ]] ; then
-      echo "${_base}/"
+        debug "Added trailing slash to ${1}"
+        echo "${_base}/"
     else
-      echo "${_base}"
+        debug "No trailing slash added to ${1}"
+        echo "${_base}"
     fi
+}
+
+################################################################################
+# Parse common arguments such as the log level.
+# Error codes:
+#   0       execution nominal, parsed an argument correctly
+#   1       could not parse argument
+#   2       end of argument list reached (should not happen)
+# Global companion:
+#   SHIFT   *int* indicating how much the script argument list should be
+#           shifted by
+################################################################################
+declare -i  SHIFT
+export      SHIFT
+function parse_common_argument () {
+    if [[ -z ${1+x} ]] ; then
+        return 1
+    fi
+
+    case "${1}" in
+        -mv | --move)
+            should_move_files=1
+            readonly should_move_files
+            SHIFT=1
+            return 0
+            ;;
+        -h | --help)
+            display_help
+            return 10
+            ;;
+        -l | --log-level)
+            if [[ ! "${2}" =~ ^[0-3]$ ]] ; then
+                err "The log level parameter only accepts integer values (between 0-3, both included)"
+                return 2
+            fi
+            if [[ ${2} -eq 3 ]] ; then
+                set -x
+            fi
+            log_level=${2}
+            readonly log_level
+            SHIFT=2
+            ;;
+        --) # End of all options
+            SHIFT=1
+            return 0
+            ;;
+        -*) # Unknown
+            err "Unknown argument: ${1}"
+            return 1
+            ;;
+        *)  # No more options
+            debug "Should not happen"
+            return 2
+            ;;
+    esac
+}
+
+################################################################################
+# Performs operations on global common arguments:
+#   - sets defaults for optional arguments
+# Sets globals:
+#   log_level?          *int*  between 1-3 indicating the verbosity
+#   should_move_files?  *flag* indicating whether to move or copy files
+#   is_dry_run?         *flag* indicating whether to effectively run the script
+################################################################################
+function check_common_arguments () {
+    if [[ -z ${log_level+x} ]] ; then
+        log_level=1
+        readonly log_level
+    fi
+    if [[ -z ${should_move_files+x} ]] ; then
+        should_move_files=0
+        readonly should_move_files
+    fi
+    if [[ -z ${is_dry_run+x} ]] ; then
+        is_dry_run=0
+        readonly is_dry_run
+    fi
+
+    debug "Log level: ${log_level}"
+    debug "Flag move: ${should_move_files}"
+    debug "Flag dry run: ${is_dry_run}"
+}
+
+################################################################################
+# Display help
+# Use globals:
+#   +HELP_TEXT          help text coming from the currently invoked command
+#   +COMMON_HELP_TEXT   help text for common arguments
+################################################################################
+function display_help () {
+    printf "%s\n%s" "${HELP_TEXT}" "${COMMON_HELP_TEXT}" >/dev/tty
 }

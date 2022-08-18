@@ -26,23 +26,7 @@ declare -r -A OPTION_CODEC_TO_FFMPEG_CODEC=( [flac]=flac [vorbis]=libvorbis )
 declare -r -A OPTION_CODEC_TO_EXTENSION=( [flac]=flac [vorbis]=ogg )
 declare -r -A COMPARE_SAMPLE_FMTS=( [u8]=0 [s16]=1 [s32]=2 [flt]=-1 [dbl]=-1 [u8p]=0 [s16p]=1 [s32p]=2 [fltp]=-1 [dblp]=-1 [s64]=3 [s64p]=3 )
 
-# Globals
-## Once set, they should be read-only
-declare    source
-declare    target
-declare    target_codec
-declare    target_sample_fmt
-declare -i target_sample_rate
-declare -i target_quality
-declare -i should_move_files
-declare -i is_dry_run
-
-################################################################################
-# Display help
-################################################################################
-function display_help () {
-    cat <<EOF
-Usage ${0} --input <DIRECTORY> --output <DIRECTORY> --codec <CODEC> [OPTIONS]...
+HELP_TEXT="Usage ${0} --input <DIRECTORY> --output <DIRECTORY> --codec <CODEC> [OPTIONS]...
 Parameters:
     -i  --input <DIRECTORY>         Input folder, containing the music files
     -o  --output <DIRECTORY>        Output folder, into which music files will be transcoded
@@ -52,19 +36,17 @@ Parameters:
     -sr --sample-rate <FREQUENCY>   Sample rate, in Hz. Default value is 48000 Hz.
                                     Incompatible with lossy codecs.
     -sr --sample-rate <FREQUENCY>   Quality for transcoding, 1-12 scale. Default value is 8.
-                                    Incompatible with non-Vorbis codecs.
-    -l  --log-level                 Log level, between 0 and 3, both included.
-                                        0: quiet            (only errors)
-                                        1: standard         (default)
-                                        2: verbose          (debug logs)
-                                        3: HYPER-verbose    (set -x)
-Flags:
-    -dy --dry-run                   Does not touch or create any file, but prompts what would
-                                    have been done.
-    -mv --move                      Deletes original files after transcoding.
-    -h  --help                      Displays help
-EOF
-}
+                                    Incompatible with non-Vorbis codecs."
+readonly HELP_TEXT
+
+# Globals
+## Once set, they should be read-only
+declare    source
+declare    target
+declare    target_codec
+declare    target_sample_fmt
+declare -i target_sample_rate
+declare -i target_quality
 
 ################################################################################
 # Compute the sample rate. If target sample rate is superior to source,
@@ -231,38 +213,17 @@ function parse_arguments () {
                 readonly target_quality
                 shift 2
                 ;;
-            -mv | --move)
-                should_move_files=1
-                readonly should_move_files
-                shift
-                ;;
-            -dy | --dry)
-                is_dry_run=1
-                readonly is_dry_run
-                ;;
-            -h | --help)
-                display_help
-                return 10
-                ;;
-            -l | --log-level)
-                if [[ ! "${2}" =~ ^[0-3]$ ]] ; then
-                    err "The log level parameter only accepts integer values (between 0-3, both included)"
-                    return 2
-                fi
-                if [[ ${2} -eq 3 ]] ; then
-                    set -x
-                fi
-                log_level=${2}
-                readonly log_level
-                shift 2
-                ;;
             --) # End of all options
-                shift
                 break
                 ;;
             -*) # Unknown
-                err "Unknown option: ${1}"
-                return 1
+                parse_common_argument "${@}"
+                case "${?}" in
+                    0 ) debug "Parsed common argument ${1}"; shift "${SHIFT}" ;;
+                    1 ) return 1  ;;
+                    2 ) break     ;;
+                    10) return 10 ;;
+                esac
                 ;;
             *)  # No more options
                 break
@@ -344,18 +305,6 @@ function check_arguments_validity () {
         target_sample_rate=48000
         readonly target_sample_rate
     fi
-    if [[ -z ${log_level+x} ]] ; then
-        log_level=1
-        readonly log_level
-    fi
-    if [[ -z ${should_move_files+x} ]] ; then
-        should_move_files=0
-        readonly should_move_files
-    fi
-    if [[ -z ${is_dry_run+x} ]] ; then
-        is_dry_run=0
-        readonly is_dry_run
-    fi
 
     source=$(add_trailing_slash "${source}")
     readonly source
@@ -366,8 +315,6 @@ function check_arguments_validity () {
     debug "Quality: ${target_quality}"
     debug "Target sample format: ${target_sample_fmt}"
     debug "Target sample rate: ${target_sample_rate}"
-    debug "Log level: ${log_level}"
-    debug "Flag move: ${should_move_files}"
 }
 
 ################################################################################
@@ -380,9 +327,6 @@ function check_arguments_validity () {
 #  +target_sample_fmt!
 #  +target_sample_rate!
 #  +target_quality!
-#  +should_move_files!
-#  +is_dry_run!
-#  +log_level!
 # Returns:
 #   0                   completed transcoding
 #   1                   no files in source
@@ -537,12 +481,14 @@ function main () {
 # Core
 parse_arguments "${@}"
 case "${?}" in
-    0 | 10 ) ;;
+    0 ) ;;
     1 ) err "Unrecognized argument";    exit 1;;
     2 ) err "Bad argument";             exit 1;;
+    10) debug "Help displayed";         exit 0;;
     * ) err "Unrecognized error";       exit 255 ;;
 esac
 
+check_common_arguments
 check_arguments_validity
 case "${?}" in
     0 ) ;;
