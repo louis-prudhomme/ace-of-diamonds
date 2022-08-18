@@ -47,6 +47,7 @@ declare    target_codec
 declare    target_sample_fmt
 declare -i target_sample_rate
 declare -i target_quality
+declare -i target_comression_level
 
 ################################################################################
 # Compute the sample rate. If target sample rate is superior to source,
@@ -213,6 +214,20 @@ function parse_arguments () {
                 readonly target_quality
                 shift 2
                 ;;
+            -cl | --compression-level)
+                if [[ ! "${2}" =~ ^[0-9]+$ ]] ; then
+                    err "The compression level parameter only accepts integer values"
+                    return 2
+                fi
+                if [[ ${2} -lt 1 || ${2} -gt 12 ]] ; then
+                    err "Compression level parameter not within 1 < compression level < 12"
+                    return 2
+                fi
+
+                target_compression_level="${2}"
+                readonly target_compression_level
+                shift 2
+                ;;
             --) # End of all options
                 break
                 ;;
@@ -300,6 +315,10 @@ function check_arguments_validity () {
     if [[ -z ${target_quality+x} ]] ; then
         target_quality=9
         readonly target_quality
+    fi
+    if [[ -z ${target_compression_level+x} ]] ; then
+        target_compression_level=12
+        readonly target_compression_level
     fi
     if [[ -z ${target_sample_rate+x} ]] ; then
         target_sample_rate=48000
@@ -414,7 +433,7 @@ function main () {
             ffmpeg_cmd_flags+=(-ar "${sample_rate}")
 
             if [[ ${target_codec} == "flac" ]] ; then
-                ffmpeg_cmd_flags+=(-compression_level 12) # TODO option
+                ffmpeg_cmd_flags+=(-compression_level "${target_comression_level}")
             fi
         fi
 
