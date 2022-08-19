@@ -18,6 +18,8 @@ source "./utils.bash"
 
 # Constants
 declare -r    PROBABLY_MISTAKE="; while this might be intended, be advised this is likely a mistake"
+declare -r    DEFAULT_SAMPLE_SOURCE_FMT="s16"
+declare -r    DEFAULT_SAMPLE_TARGET_FMT="s32"
 declare -r -a ACCEPTED_TARGET_CODECS=("flac" "vorbis")
 declare -r -a LOSSY_CODECS=("mp3" "vorbis")
 declare -r -a LOSSLESS_CODECS=("flac" "alac")
@@ -97,7 +99,7 @@ function get_sample_fmt () {
         local _source_fmt_val=${COMPARE_SAMPLE_FMTS[$_source]}
         local _target_fmt_val=${COMPARE_SAMPLE_FMTS[$_target]}
         if [[ ${_source_fmt_val} -eq -1 ]] ; then
-            echo "s16" # TODO constant
+            echo "${DEFAULT_SAMPLE_SOURCE_FMT}"
         elif [[ ${_source_fmt_val} -gt ${_target_fmt_val} ]] ; then
             echo "${_target}"
         else
@@ -142,7 +144,6 @@ function parse_arguments () {
                 ;;
             -o | --output)
                 target="${2}"
-                readonly target
                 shift 2
                 ;;
             -c | --codec)
@@ -267,33 +268,24 @@ function parse_arguments () {
 ################################################################################
 function check_arguments_validity () {
     # Mandatory arguments check
-    if [[ -z ${source+x} || -z ${target+x} || -z ${target_codec+x} ]] ; then
-        err "One or more mandatory parameters are missing (--input, --output and --codec must be set)"
+    if [[ -z ${target_codec} ]] ; then
+        err "Codec parameter is blank or missing (--codec <codec> must be set)"
         return 2
     fi
 
-    # Input & output folder checks
-    check_path_exists_and_is_directory "${target}" 1
+    check_input_argument "${source}"
     case "${?}" in
-        0 ) log "Created ${target}" ;;
-        1 ) err "Invalid directory";                                return 1 ;;
-        2 ) log "Directory was not created";                        return 1 ;;
-        3 ) err "Path exists but is a file rather than directory";  return 3 ;;
+        0) ;;
+        *) return ${?}
     esac
+    readonly source
 
-    # Folder permissions check
-    if [[ ! -d ${source} ]] ; then
-        err "Input folder must be a valid directory (${source})"
-        return 3
-    fi
-    if [[ ! -r ${source} ]] ; then
-        err "Lacking READ permissions on input folder (${source})"
-        return 3
-    fi
-    if [[ ! -w ${target} ]] ; then
-        err "Lacking READ permissions on output folder (${target})"
-        return 3
-    fi
+    check_output_argument "${target}"
+    case "${?}" in
+        0) ;;
+        *) return ${?}
+    esac
+    readonly target
 
     # Incompatible parameters
     if [[ -n "${target_sample_fmt+x}" && "${target_codec}" == "vorbis" ]] ; then
@@ -307,9 +299,8 @@ function check_arguments_validity () {
     fi
 
     # Optional parameters
-    # TODO constants
     if [[ -z ${target_sample_fmt+x} ]] ; then
-        target_sample_fmt="s32"
+        target_sample_fmt="${DEFAULT_SAMPLE_TARGET_FMT}"
         readonly target_sample_fmt
     fi
     if [[ -z ${target_quality+x} ]] ; then
@@ -325,12 +316,7 @@ function check_arguments_validity () {
         readonly target_sample_rate
     fi
 
-    source=$(add_trailing_slash "${source}")
-    readonly source
-
     # Debug vitals
-    debug "Input: ${source}"
-    debug "Output: ${target}"
     debug "Quality: ${target_quality}"
     debug "Target sample format: ${target_sample_fmt}"
     debug "Target sample rate: ${target_sample_rate}"
@@ -375,6 +361,7 @@ function main () {
         case "${?}" in
             0 ) ;;
             3 ) err "Path exists but is a file rather than directory"; return 2 ;;
+            4 ) err "Destination path contains forbidden characters";  return 1 ;;
         esac
 
         # Analyze existing music file
@@ -452,6 +439,7 @@ function main () {
             && ${source_codec} == "${target_codec}" \
             && ${source_sample_fmt} == "${sample_fmt}" \
             && ${source_sample_rate} == "${sample_rate}" ]] ; then
+            debug "Target file would be (almost) identical to source."
             if [[ ${should_move_files} -eq 1 ]] ; then
                 if [[ ${should_move_files} -eq 1
                     && ${is_dry_run} -eq 0 ]] ; then

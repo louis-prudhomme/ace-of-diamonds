@@ -24,6 +24,10 @@ declare     HELP_TEXT
 export      HELP_TEXT
 
 # Constants
+declare -r      FOLDER_FORBIDDEN_CHARS='{}|\<:>?*"'
+export          FOLDER_FORBIDDEN_CHARS
+declare -r      FORBIDDEN_EXTRA_CHARS="${FORBIDDEN_CHARS}/"
+export          FORBIDDEN_EXTRA_CHARS
 declare -r -a   ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
 export          ACCEPTED_SOURCE_CODECS
 
@@ -76,11 +80,16 @@ function debug () {
 #   1               invalid user choice during prompt
 #   2               user refused creation
 #   3               path led to a file
+#   4               path contains forbidden chars
 ################################################################################
 function check_path_exists_and_is_directory () {
     local _target="${1}"
     local _should_prompt_decision="${2:-${2:-0}}"
-# TODO prevent creation when forbidden chars such as {}
+
+    if [[ ${_target} =~ [${FORBIDDEN_CHARS}] ]] ; then
+        return 4
+    fi
+
     if [[ ! -d ${_target} ]] ; then
         if [[ -f ${_target} ]] ; then
             return 3
@@ -103,6 +112,8 @@ function check_path_exists_and_is_directory () {
             * ) return 1 ;;
         esac
     fi
+    # directory exists
+    return 0
 }
 
 ################################################################################
@@ -250,6 +261,99 @@ function add_trailing_slash () {
         debug "No trailing slash added to ${1}"
         echo "${_base}"
     fi
+}
+
+################################################################################
+# Formats path without trailing slash if needed.
+# Arguments:
+#   base!           *path* to format.
+# Returns:
+#   echoes          formatted path
+################################################################################
+function remove_trailing_slash () {
+    local _base="${1}"
+    _last=${_base:(-1)}
+
+    if [[ ${_last} == "/" ]] ; then
+        debug "Removed trailing slash of ${1}"
+        echo "${_base::-1}"
+    else
+        debug "No trailing slash in ${1}"
+        echo "${_base}"
+    fi
+}
+
+################################################################################
+# Check input folder argument.
+# Error codes:
+#   0       execution nominal, path leads to a valid folder
+#   1       user-related error (forbidden chars in path)
+#   2       path is missing or blank
+#   3       path exists but is wrong (file or missing permissions)
+################################################################################
+function check_input_argument () {
+    # Check if path is null / empty
+    debug "${1}"
+    if [[ -z ${1} ]] ; then
+        err "Input parameter is missing or empty (--input <path> must be set)"
+        return 2
+    fi
+
+    # Folder checks
+    local _source=$(remove_trailing_slash "${1}")
+    check_path_exists_and_is_directory "${_source}"
+    case "${?}" in
+        0 ) ;;
+        3 ) err "Path exists but is a file rather than directory";  return 3 ;;
+        4 ) err "Input path contains forbidden characters";         return 1 ;;
+    esac
+
+    # Folder permissions check
+    if [[ ! -d ${_source} ]] ; then
+        err "Input folder must be a valid directory (${_source})"
+        return 3
+    fi
+    if [[ ! -r ${_source} ]] ; then
+        err "Lacking READ permissions on input folder (${_source})"
+        return 3
+    fi
+
+    source="${_source}"
+}
+
+################################################################################
+# Check output folder argument.
+# Error codes:
+#   0       execution nominal, path leads to a valid folder
+#   1       user-related error (refusal or forbidden chars in path)
+#   2       path is missing or blank
+#   3       path exists but is wrong (file or missing permissions)
+################################################################################
+function check_output_argument () {
+    # Check folder path
+    if [[ -z ${1} ]] ; then
+        err "Output parameter is missing (--output <path> must be set)"
+        return 2
+    fi
+
+    # Folder checks
+    local _target=$(remove_trailing_slash "${1}")
+    check_path_exists_and_is_directory "${_target}" 1
+    case "${?}" in
+        0 ) ;;
+        1 ) err "Invalid choice";                                   return 1 ;;
+        2 ) log "Directory was not created";                        return 1 ;;
+        3 ) err "Path exists but is a file rather than directory";  return 3 ;;
+        4 ) err "Output path contains forbidden characters";        return 1 ;;
+    esac
+
+    # Folder permissions check
+    if [[ ! -w ${_target} ]] ; then
+        err "Lacking READ permissions on output folder (${_target})"
+        return 3
+    fi
+
+    target="${_target}"
 }
 
 ################################################################################

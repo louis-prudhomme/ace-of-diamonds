@@ -26,7 +26,6 @@ declare    placeholder
 
 # CONSTANTS
 ## taking windows limitations in account, to guarantee maximum portability
-declare -r      FORBIDDEN_CHARS='{}/|\<:>?*"'
 declare -r      REPLACER_MARKER="?"
 declare -r      ADDITION_MARKER="+"
 declare -r      TOKEN_COMPOSITION_OPENER="{"
@@ -99,7 +98,7 @@ function get_tag_from_formatter () {
 function remove_forbidden_chars () {
     local _subject="${1}"
 
-    echo "${_subject//[$FORBIDDEN_CHARS]/$placeholder}"
+    echo "${_subject//[$FILE_FORBIDDEN_CHARACTERS]/$placeholder}"
 }
 
 ################################################################################
@@ -255,7 +254,6 @@ function parse_arguments () {
                 ;;
             -o | --output)
                 target="${2}"
-                readonly target
                 shift 2
                 ;;
             -f | --format)
@@ -303,37 +301,21 @@ function parse_arguments () {
 #   3                   external issue (permissions, path exists as file...)
 ################################################################################
 function check_arguments_validity () {
-    # Mandatory arguments check
-    if [[ -z ${source+x} || -z ${target+x} ]] ; then
-        err "One or more mandatory parameters are missing (--input and --output must be set)"
-        return 2
-    fi
-
-    # Input & output folder checks
-    check_path_exists_and_is_directory "${target}" 1
+    check_input_argument "${source}"
     case "${?}" in
-        0 ) log "Created ${target}" ;;
-        1 ) err "Invalid directory";                                return 1 ;;
-        2 ) log "Directory was not created";                        return 1 ;;
-        3 ) err "Path exists but is a file rather than directory";  return 3 ;;
+        0) ;;
+        *) return ${?}
     esac
+    readonly source
 
-    # Folder permissions check
-    if [[ ! -d ${source} ]] ; then
-        err "Input folder must be a valid directory (${source})"
-        return 3
-    fi
-    if [[ ! -r ${source} ]] ; then
-        err "Lacking READ permissions on input folder (${source})"
-        return 3
-    fi
-    if [[ ! -w ${target} ]] ; then
-        err "Lacking READ permissions on output folder (${target})"
-        return 3
-    fi
+    check_output_argument "${target}"
+    case "${?}" in
+        0) ;;
+        *) return ${?}
+    esac
+    readonly target
 
     # Optional parameters
-    # TODO constants
     if [[ -z ${format+x} ]] ; then
         format="${DEFAULT_FORMAT}"
         readonly format
@@ -342,9 +324,6 @@ function check_arguments_validity () {
         placeholder="${DEFAULT_PLACEHOLDER}"
         readonly placeholder
     fi
-
-    source="$(add_trailing_slash "${source}")"
-    readonly source
 
     # Debug vitals
     debug "Input: ${source}"
@@ -408,6 +387,7 @@ function main () {
         case "${?}" in
             0 ) ;;
             3 ) err "Path exists but is a file rather than directory"; return 2 ;;
+            4 ) err "Destination path contains forbidden characters";  return 1 ;;
         esac
 
         # Move or copy file to destination
