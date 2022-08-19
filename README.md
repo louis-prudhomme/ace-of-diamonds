@@ -8,7 +8,7 @@ This is a Bash script toolbox, aiming to transcode and organize music files.
 
 ## Requirements 
 
-All scripts were developed using Bash 5 ; they require a Bash version at least superior to 3.2.75.
+All scripts were developed using Bash 5 ; they require a Bash version at least superior to 3.2.75 and aim for `#!/usr/local/bin/bash` (to let you customize your shell).
 
 MacOS, notably, ships an outdated Bash version which will fail to run these scripts (unless preemptively modified).
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/local/bin/bash
 
 # This script helps transcode music files to either FLAC or Vorbis (OGG).
 # Return codes:
