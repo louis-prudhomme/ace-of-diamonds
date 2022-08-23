@@ -441,9 +441,9 @@ function main () {
             && ${source_sample_fmt} == "${sample_fmt}" \
             && ${source_sample_rate} == "${sample_rate}" ]] ; then
             debug "Target file would be (almost) identical to source."
-            if [[ ${should_move_files} -eq 1 ]] ; then
+            if [[ ${should_move_files:?} -eq 1 ]] ; then
                 if [[ ${should_move_files} -eq 1
-                    && ${is_dry_run} -eq 0 ]] ; then
+                    && ${is_dry_run:?} -eq 0 ]] ; then
                     mv "${input}" "${destination}"
                 fi
                 debug "Moved ${input} to ${destination}"

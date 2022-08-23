@@ -405,7 +405,7 @@ function main () {
     for i in "${!list_titles[@]}" ; do
         local _destination="${target}/${list_titles[$i]}.${_extension}"
 
-        if [[ ${is_dry_run} -eq 0 ]] ; then
+        if [[ ${is_dry_run:?} -eq 0 ]] ; then
             ffmpeg -y -i "${source}"        \
                 -v error                    \
                 -ss "${list_starts[$i]}ms"  \
