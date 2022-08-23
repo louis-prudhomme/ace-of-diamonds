@@ -65,7 +65,7 @@ function get_sample_rate () {
     local _source="${1}"
     local _target="${2}"
 
-    if [[ -z ${source+x} ]] ; then
+    if [[ -z ${source} ]] ; then
         echo "${target}"
     else
         if [[ ${_source} -gt ${_target} ]] ; then
@@ -93,7 +93,7 @@ function get_sample_fmt () {
     local _source="${1}"
     local _target="${2}"
 
-    if [[ -z ${_source+x} ]] ; then
+    if [[ -z ${_source} ]] ; then
         echo "${_target}"
     else
         local _source_fmt_val=${COMPARE_SAMPLE_FMTS[$_source]}
@@ -132,10 +132,6 @@ function parse_arguments () {
     debug "Parsing arguments"
     
     while : ; do
-        if [[ -z ${1+x} ]] ; then
-            break
-        fi
-
         case "${1}" in
             -i | --input)
                 # not readonly because of subsequent formatting

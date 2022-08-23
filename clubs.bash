@@ -242,10 +242,6 @@ function parse_arguments () {
     debug "Parsing arguments"
     
     while : ; do
-        if [[ -z ${1+x} ]] ; then
-            break
-        fi
-
         case "${1}" in
             -i | --input)
                 # not readonly because of subsequent formatting

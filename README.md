@@ -62,4 +62,3 @@ $ ./spades.bash --input "~/File/To.Split" --output "~/Musics/Splited" --track "T
 - complete spades (move)
 - add read csv from stdin to spades
 - wrapper around youtube-dl ?
-- check empty / null testing (-z)

@@ -97,10 +97,6 @@ function parse_track_declaration_argument () {
     shift 2
 
     while : ; do
-        if [[ -z ${1+x} ]] ; then
-            break
-        fi
-
         case "${1}" in
             -s | --start)
                 parse_time_formats "${2}"
@@ -157,10 +153,6 @@ function parse_arguments () {
     declare -i _track_count=0
 
     while : ; do
-        if [[ -z ${1+x} ]] ; then
-            break
-        fi
-
         case "${1}" in
             -i | --input)
                 # not readonly because of subsequent formatting

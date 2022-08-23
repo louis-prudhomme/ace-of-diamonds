@@ -368,10 +368,6 @@ function check_output_argument () {
 declare -i  SHIFT
 export      SHIFT
 function parse_common_arguments () {
-    if [[ -z ${1+x} ]] ; then
-        return 1
-    fi
-
     case "${1}" in
         -mv | --move)
             should_move_files=1
