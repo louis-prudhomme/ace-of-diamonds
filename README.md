@@ -59,6 +59,5 @@ $ ./spades.bash --input "~/File/To.Split" --output "~/Musics/Splited" --track "T
 - add safety for ffmpeg presence
 - "rebuts" for `diamonds`
 - redact proper Shellguide
-- complete spades (move)
 - add read csv from stdin to spades
 - wrapper around youtube-dl ?

@@ -410,8 +410,6 @@ function main () {
             0 ) log "Created ${_destination}" ;;
             * ) err "While handling ${_destination}"; return 1 ;;
         esac
-
-        # todo flag "move"?
     done
 
     log "Finished splitting. Congratulations!"
@@ -429,6 +427,9 @@ case "${?}" in
 esac
 
 check_common_arguments
+if [[ ${should_move_files:?} -eq 1 ]] ; then
+    log "Move flag enabled; in this script, it is useless."
+fi
 check_arguments_validity
 case "${?}" in
     0 ) ;;
