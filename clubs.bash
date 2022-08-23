@@ -392,12 +392,12 @@ function main () {
 
         # Move or copy file to destination
         if [[ ${should_move_files} -eq 1 ]] ; then
-            if [[ ${should_move_files} -eq 1 ]] ; then
+            if [[ ${is_dry_run} -eq 0 ]] ; then
                 mv "${input}" "${destination}"
             fi
             debug "Moved ${input} to ${destination}"
         else
-            if [[ ${should_move_files} -eq 1 ]] ; then
+            if [[ ${is_dry_run} -eq 0 ]] ; then
                 cp "${input}" "${destination}"
             fi
             debug "Copied ${input} to ${destination}"

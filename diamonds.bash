@@ -461,7 +461,7 @@ function main () {
             if [[ ${is_dry_run} -eq 0 ]] ; then
                 ffmpeg "${ffmpeg_cmd_flags[@]}" 2>/dev/tty
             else
-                true
+                true # to mock return code
             fi
             case "${?}" in
                 0 ) debug "Transcoded ${input}" ;;

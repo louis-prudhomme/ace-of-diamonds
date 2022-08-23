@@ -127,6 +127,7 @@ function parse_track_declaration_argument () {
                 break
                 ;;
             --) # End of all options
+                (( SHIFT +=1 ))
                 break
                 ;;
             -*) # Unknown
@@ -369,7 +370,7 @@ function check_arguments_validity () {
         fi
 
         if [[ -z ${list_ends[$i]} ]] ; then
-            if [[ $(( i + 1 )) -eq ${#list_titles} ]] ; then
+            if [[ $(( i + 1 )) -eq ${#list_titles[@]} ]] ; then
                 list_ends[$i]=${_music_file_length}
             else
                 (( _next = i + 1 ))
@@ -404,11 +405,15 @@ function main () {
     for i in "${!list_titles[@]}" ; do
         local _destination="${target}/${list_titles[$i]}.${_extension}"
 
-        ffmpeg -y -i "${source}"        \
-            -v error                    \
-            -ss "${list_starts[$i]}ms"  \
-            -to "${list_ends[$i]}ms"    \
-            -c copy "${_destination}"
+        if [[ ${is_dry_run} -eq 0 ]] ; then
+            ffmpeg -y -i "${source}"        \
+                -v error                    \
+                -ss "${list_starts[$i]}ms"  \
+                -to "${list_ends[$i]}ms"    \
+                -c copy "${_destination}"
+        else
+            true # to mock return code
+        fi
         case "${?}" in
             0 ) log "Created ${_destination}" ;;
             * ) err "While handling ${_destination}"; return 1 ;;

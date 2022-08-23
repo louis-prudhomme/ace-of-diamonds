@@ -379,6 +379,12 @@ function parse_common_arguments () {
             SHIFT=1
             return 0
             ;;
+        -dy | --dry-run)
+            is_dry_run=1
+            readonly is_dry_run
+            SHIFT=1
+            return 0
+            ;;
         -h | --help)
             display_help
             return 10
