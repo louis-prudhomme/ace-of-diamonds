@@ -39,7 +39,7 @@ They should feature:
   - `!` denotes a mandatory parameter
   - `?` denotes an optional parameter
   - `*` denotes an array parameter
-  - ideally, a word in the following description indicates the expected parameter type
+  - ideally, a word in the following description indicates the expected parameter type (highlighted with '*')
 - interaction with global parameters
 - return codes and values
   - `echoes` is what the function `echo` on its STDOUT

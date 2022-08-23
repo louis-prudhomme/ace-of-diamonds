@@ -137,7 +137,7 @@ function ffprobe_music_file () {
         local _grep_key="="
     fi
 
-    readarray -t RAW_MUSIC_FILE_STREAM < <(ffprobe                        \
+    readarray -t RAW_MUSIC_FILE_STREAM < <(ffprobe                      \
                                            -v fatal                     \
                                            -print_format default        \
                                            -show_streams:a "${_input}"  \
@@ -293,7 +293,6 @@ function remove_trailing_slash () {
 ################################################################################
 function check_input_argument () {
     # Check if path is null / empty
-    debug "${1}"
     if [[ -z ${1} ]] ; then
         err "Input parameter is missing or empty (--input <path> must be set)"
         return 2
@@ -368,7 +367,7 @@ function check_output_argument () {
 ################################################################################
 declare -i  SHIFT
 export      SHIFT
-function parse_common_argument () {
+function parse_common_arguments () {
     if [[ -z ${1+x} ]] ; then
         return 1
     fi

@@ -233,7 +233,7 @@ function parse_arguments () {
                 break
                 ;;
             -*) # Unknown
-                parse_common_argument "${@}"
+                parse_common_arguments "${@}"
                 case "${?}" in
                     0 ) debug "Parsed common argument ${1}"; shift "${SHIFT}" ;;
                     1 ) return 1  ;;
@@ -427,6 +427,7 @@ function main () {
         # Configure for lossy codec target
         if [[ "${LOSSY_CODECS[$target_codec]}" -eq 1 ]] ; then
             if [[ ${target_codec} == "vorbis" ]] ; then
+                # todo check if best left to 0 (variable)
                 ffmpeg_cmd_flags+=(-q:a "${target_quality}")
             fi
         fi
@@ -457,12 +458,14 @@ function main () {
             formatted_cmd_parameters=$(printf "%s " "${ffmpeg_cmd_flags[@]}")
             debug "Ffmpeg command is \`ffmpeg ${formatted_cmd_parameters}\`"
 
-            if [[ ${should_move_files} -eq 0 ]] ; then
-                potential_error=$(ffmpeg "${ffmpeg_cmd_flags[@]}" 2>&1)
+            if [[ ${is_dry_run} -eq 0 ]] ; then
+                ffmpeg "${ffmpeg_cmd_flags[@]}" 2>/dev/tty
+            else
+                true
             fi
             case "${?}" in
                 0 ) debug "Transcoded ${input}" ;;
-                * ) err "${potential_error}"; return 4 ;;
+                * ) return 4 ;;
             esac
             if [[ ${should_move_files} -eq 1 ]] ; then
                 if [[ ${is_dry_run} -eq 0 ]] ; then

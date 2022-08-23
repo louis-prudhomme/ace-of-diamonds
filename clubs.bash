@@ -271,7 +271,7 @@ function parse_arguments () {
                 break
                 ;;
             -*) # Unknown
-                parse_common_argument "${@}"
+                parse_common_arguments "${@}"
                 case "${?}" in
                     0 ) debug "Parsed common argument ${1}"; shift "${SHIFT}" ;;
                     1 ) return 1  ;;

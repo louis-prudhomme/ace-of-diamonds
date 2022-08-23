@@ -5,6 +5,7 @@
 This is a Bash script toolbox, aiming to transcode and organize music files.
 - diamonds: transcode music files to _vorbis_ and _flac_.
 - clubs: organize music file following a pattern.
+- spades: break down music files into smaller tracks.
 
 ## Requirements 
 
@@ -16,6 +17,10 @@ MacOS, notably, ships an outdated Bash version which will fail to run these scri
 
 ## Usage
 
+This section presents base usage of each script. 
+
+Other parameters and options are available ; use the `--help` to learn everything about it.
+
 ### Diamonds
 
 Helps you transcode music files from various formats to either OGG (Vorbis) or Flac. 
@@ -26,13 +31,11 @@ Invoke the script with the `input`, `output` and `codec` parameters (at least).
 $ ./diamonds.bash --input "~/Musics/To/Transcode" -output "~/Musics/Transcoded" -codec vorbis
 ```
 
-Other parameters and options are available ; use the `--help` to learn everything about it.
+**WARNING**: during execution, some files **will** crash ffmpeg, thus crashing the script, which will stop execution.
 
-**WARNING**: during execution, some files will crash ffmpeg, thus crashing the script, which will stop execution.
+### Clubs
 
-### Clubs 
-
-Helps you sort OGG and Flac music files in your filesystem, according to their music tags. 
+Helps you sort OGG and Flac music files in your filesystem, according to their music tags.
 
 Invoke the script with the `input` and `output` parameters (at least).
 
@@ -40,12 +43,23 @@ Invoke the script with the `input` and `output` parameters (at least).
 $ ./clubs.bash --input "~/Musics/To/Organize" -output "~/Musics/Organized" 
 ```
 
-Other parameters and options are available ; use the `--help` to learn everything about it.
+### Spades
+
+Helps you split music (or video) files into smaller pieces. No attempt will be made to transcode anything; running the script will result in small pieces of the same media container.
+
+Invoke the script with the `input` and `output` parameters, as well as at least one track specification.
+
+```bash
+$ ./spades.bash --input "~/File/To.Split" -output "~/Musics/Splited" --track "Title" --start "00:00" --end "50s"  
+```
 
 # TODOs
 
 - pre-commit hook TODO engine
-- add safety for ffmpeg + youtube-dl presence
-- music file cutter
+- add safety for ffmpeg presence
 - "rebuts" for `diamonds`
 - redact proper Shellguide
+- complete spades (move)
+- add read csv from stdin to spades
+- wrapper around youtube-dl ?
+- check empty / null testing (-z)
