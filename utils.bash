@@ -43,6 +43,16 @@ Common flags:
     -mv --move                      Delete original files.
     -h  --help                      Display help"
 
+declare -i ffsuite_check=0
+ffmpeg -version > /dev/null
+(( ffsuite_check += $? ))
+ffprobe -version > /dev/null
+(( ffsuite_check += $? ))
+case ${ffsuite_check} in
+    0) ;;
+    1) exit 11 # TODO betterify
+esac
+
 ################################################################################
 # Functions to output workflow feedback to user.
 # Returns:

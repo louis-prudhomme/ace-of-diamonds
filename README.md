@@ -56,7 +56,6 @@ $ ./spades.bash --input "~/File/To.Split" --output "~/Musics/Splited" --track "T
 # TODOs
 
 - pre-commit hook TODO engine
-- add safety for ffmpeg presence
 - "rebuts" for `diamonds`
 - redact proper Shellguide
 - add read csv from stdin to spades
