@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash
+#!/usr/bin/env bash
 
 # This script helps transcode music files to either FLAC or Vorbis (OGG).
 # Return codes:
@@ -14,7 +14,9 @@
 set -o pipefail
 IFS=$'\n\t'
 
-source "./utils.bash"
+SCRIPT_REAL_PATH=$(dirname "${0}")
+readonly SCRIPT_REAL_PATH
+source "${SCRIPT_REAL_PATH}/utils.bash"
 
 # Constants
 declare -r    PROBABLY_MISTAKE="; while this might be intended, be advised this is likely a mistake"
@@ -36,8 +38,9 @@ Parameters:
     -sf --sample-format <FORMAT>    Sample format. See \`ffprobe -sample_fmts\` for more information.
                                     Incompatible with lossy codecs.
     -sr --sample-rate <FREQUENCY>   Sample rate, in Hz. Default value is 48000 Hz.
-                                    Incompatible with lossy codecs.
-    -sr --sample-rate <FREQUENCY>   Quality for transcoding, 1-12 scale. Default value is 8.
+                                    Compatible with lossy & lossless codecs.
+    -qs --quality-scale <QUALITY>   Quality for transcoding, 1-12 scale. Default value is 8.
+                                    0 is for variable quality.
                                     Incompatible with non-Vorbis codecs."
 readonly HELP_TEXT
 
@@ -403,6 +406,10 @@ function main () {
         ffmpeg_cmd_flags+=(-vn)                 # strip non-audio streams (see footnote #1)
         ffmpeg_cmd_flags+=(-c:a "${OPTION_CODEC_TO_FFMPEG_CODEC[$target_codec]}")
 
+        # get sample rate
+        sample_rate=$(get_sample_rate "${source_sample_rate}" "${target_sample_rate}")
+        ffmpeg_cmd_flags+=(-ar "${sample_rate}")
+
         # Configure for lossless codec target
         if [[ ${LOSSLESS_CODECS[$target_codec]} -eq 1 ]] ; then
             sample_fmt=$(get_sample_fmt "${source_sample_fmt}" "${target_sample_fmt}")
@@ -411,9 +418,6 @@ function main () {
             if [[ ${sample_fmt} == "s32" || ${sample_fmt} == "s32p" ]] ; then
                 ffmpeg_cmd_flags+=(-bits_per_raw_sample 24)
             fi
-
-            sample_rate=$(get_sample_rate "${source_sample_rate}" "${target_sample_rate}")
-            ffmpeg_cmd_flags+=(-ar "${sample_rate}")
 
             if [[ ${target_codec} == "flac" ]] ; then
                 ffmpeg_cmd_flags+=(-compression_level "${target_comression_level}")

@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash
+#!/usr/bin/env bash
 
 # Safeguards
 #   -u not specified because of associative array use
@@ -184,10 +184,10 @@ function music_data_to_dictionary () {
           return 1
         fi
 
-        local _key="${_data%=*}"
-              _key="${_key^^}"
-              _key="${_key/[_ ]/}"
-        local _value="${_data#*=}"
+        local _key="${_data%=*}"    # remove everything after the =
+              _key="${_key,,}"      # all caps
+              _key="${_key//[_ ]/}" # remove underscores and spaces
+        local _value="${_data#*=}"  # remove everything before the =
 
         debug "Parsed data: '[${_key}]=${_value}'"
         DICTIONARY+=( [${_key}]="${_value}" )
@@ -244,6 +244,9 @@ function extract_music_file_data () {
         echo "${output_extension}"
         return 0
     fi
+
+    _needle="${_needle,,}"          # all caps
+    _needle="${_needle//[_ ]/}"     # remove all underscores and spaces
 
     if [[ -n ${input_stream_data[$_needle]} ]] ; then
         echo "${input_stream_data[$_needle]}"

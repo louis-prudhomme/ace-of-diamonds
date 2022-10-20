@@ -1,4 +1,4 @@
-#!/usr/local/bin/bash
+#!/usr/bin/env bash
 
 # This script helps split music files.
 # Return codes:
@@ -14,7 +14,9 @@
 set -o pipefail
 IFS=$'\n\t'
 
-source "./utils.bash"
+SCRIPT_REAL_PATH=$(dirname "${0}")
+readonly SCRIPT_REAL_PATH
+source "${SCRIPT_REAL_PATH}/utils.bash"
 
 # Globals
 ## Once set, they should be read-only
