@@ -43,3 +43,7 @@ They should feature:
 - interaction with global parameters
 - return codes and values
   - `echoes` is what the function `echo` on its STDOUT
+
+# 4. bits_per_raw_sample 24
+
+FFMPEG FLAC encoder cannot encore in 24 bits due to technical limitations. Thus, it is necessary to use a 32 bits bit depth, but the `bits_per_raw_sample` allows to specify it further.

@@ -37,11 +37,11 @@ Parameters:
     -o  --output <DIRECTORY>    *path* to output folder, into which tracks will be created
 
 TRACK SPEC: --track <TITLE> (--start <TIME>|--end <TIME>)
--t --track                      *string* which will be used as the track's title
--s --start                      *TIME* of start of track ; optional if --end is specified.
+    -t --track                  *string* which will be used as the track's title
+    -s --start                  *TIME* of start of track ; optional if --end is specified.
                                 If absent, the previous track end time will be taken.
                                 If first track, 0 will be taken.
--e --end                        *TIME* of end of track ; optional if --start is specified.
+    -e --end                    *TIME* of end of track ; optional if --start is specified.
                                 If absent, the next track start time will be taken.
                                 If first track, end of music file will be taken.
 TIME (S[h|m|s|ms] | [HH:]MM:SS[:MS])

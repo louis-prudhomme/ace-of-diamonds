@@ -24,12 +24,12 @@ declare     HELP_TEXT
 export      HELP_TEXT
 
 # Constants
-declare -r      FOLDER_FORBIDDEN_CHARS='{}|\<:>?*"'
+declare -r      FOLDER_FORBIDDEN_CHARS=('{}|\<:>?*"')
 export          FOLDER_FORBIDDEN_CHARS
-declare -r      FORBIDDEN_EXTRA_CHARS="${FORBIDDEN_CHARS}/"
+declare -r      FORBIDDEN_EXTRA_CHARS="${FOLDER_FORBIDDEN_CHARS[*]}/"
 export          FORBIDDEN_EXTRA_CHARS
-declare -r -a   ACCEPTED_SOURCE_CODECS=("flac" "ogg" "dsf" "mp3" "m4a")
-export          ACCEPTED_SOURCE_CODECS
+declare -r -a   ACCEPTED_SOURCE_CONTAINERS=("flac" "ogg" "dsf" "mp3" "m4a" "opus" "dts" "wma")
+export          ACCEPTED_SOURCE_CONTAINERS
 
 declare -r COMMON_HELP_TEXT="Common parameters:
     -l  --log-level                 Log level, between 0 and 3, both included.
@@ -66,14 +66,14 @@ function err () {
 }
 
 function log () {
-    if [[ ${log_level} -ge 1 ]] ; then
-        echo "[Info ]: ${*}" > /dev/tty
+    if [[ ${log_level:-1} -ge 1 ]] ; then
+        echo "[Info ]: $(printf "%s " "${@}")" > /dev/tty
     fi
 }
 
 function debug () {
-    if [[ ${log_level} -eq 2 ]] ; then
-        echo "[Debug]: ${*}" > /dev/tty
+    if [[ "${log_level:-1}" -eq 2 ]] ; then
+        echo "[Debug]: $(printf "%s " "${@}")" > /dev/tty
     fi
 }
 
@@ -96,7 +96,7 @@ function check_path_exists_and_is_directory () {
     local _target="${1}"
     local _should_prompt_decision="${2:-${2:-0}}"
 
-    if [[ ${_target} =~ [${FORBIDDEN_CHARS}] ]] ; then
+    if [[ ${_target} =~ [${FOLDER_FORBIDDEN_CHARS}] ]] ; then
         return 4
     fi
 
@@ -132,7 +132,7 @@ function check_path_exists_and_is_directory () {
 #   input!                  *path* of the file to analyze
 #   should_keep_tags_only?  *flag* to keep tag only. defaults to 0.
 # Global companion:
-#   RAW_MUSIC_FILE_STREAM  use this global var to obtain the result afterwards.
+#   RAW_MUSIC_FILE_STREAM   use this global var to obtain the result afterwards.
 ################################################################################
 declare -a RAW_MUSIC_FILE_STREAM
 export     RAW_MUSIC_FILE_STREAM
@@ -150,6 +150,7 @@ function ffprobe_music_file () {
     readarray -t RAW_MUSIC_FILE_STREAM < <(ffprobe                      \
                                            -v fatal                     \
                                            -print_format default        \
+                                           -select_streams a:0          \
                                            -show_streams:a "${_input}"  \
                                            | grep "${_grep_key}"        \
                                            | sed s/TAG://               \
@@ -162,6 +163,27 @@ function ffprobe_music_file () {
     done
 
     debug "Probed ${#RAW_MUSIC_FILE_STREAM[@]} tags"
+}
+
+################################################################################
+# Remove non-alphanumeric characters from a string
+# Parameters:
+#   input!          *string* to strip
+#   placeholder!    *string* to replace invalid characters with
+# Returns:
+#   echoes          input string stripped from non alphanumerics
+################################################################################
+function sanitize_path () {
+   local input="${1}"
+   local placeholder="${2}"
+
+   input="${input//[^[:alnum:]-_]/$placeholder}"
+   input="${input//+($placeholder)/$placeholder}"
+
+   input="${input/#$placeholder}"
+   input="${input/%$placeholder}"
+
+   echo "${input}"
 }
 
 ################################################################################
@@ -213,8 +235,8 @@ function find_music_files () {
     MUSIC_FILES=()
 
     find_cmd_flags=(-type f)
-    for extension in "${ACCEPTED_SOURCE_CODECS[@]}" ; do
-        if [[ ${extension} == "${ACCEPTED_SOURCE_CODECS[-1]}" ]] ; then
+    for extension in "${ACCEPTED_SOURCE_CONTAINERS[@]}" ; do
+        if [[ ${extension} == "${ACCEPTED_SOURCE_CONTAINERS[-1]}" ]] ; then
             find_cmd_flags+=(-name *."${extension}")
         else
             find_cmd_flags+=(-name *."${extension}" -o)
@@ -381,7 +403,7 @@ function check_output_argument () {
 declare -i  SHIFT
 export      SHIFT
 function parse_common_arguments () {
-    case "${1}" in
+    case "${1:---}" in
         -mv | --move)
             should_move_files=1
             readonly should_move_files
@@ -409,6 +431,7 @@ function parse_common_arguments () {
             log_level=${2}
             readonly log_level
             SHIFT=2
+            return 0
             ;;
         --) # End of all options
             SHIFT=1

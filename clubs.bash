@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# This script helps organize music files (either FLAC or Vorbis (OGG)).
+# This script helps organize music files (either FLAC or OGG).
 # Return codes:
 # 0     Execution terminated faithfully
 # 1     User-related issue (wrong parameters...)
@@ -87,20 +87,6 @@ function get_tag_from_formatter () {
         return 0
     fi
     return 1
-}
-
-################################################################################
-# Remove forbidden characters from a string, in the context of a file path.
-# The placeholder will be used instead.
-# Arguments:
-#   subject!        *string* to replace
-# Returns:
-#   echoes          formatted key
-################################################################################
-function remove_forbidden_chars () {
-    local _subject="${1}"
-
-    echo "${_subject//[$FILE_FORBIDDEN_CHARACTERS]/$placeholder}"
 }
 
 ################################################################################
