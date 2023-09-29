@@ -202,7 +202,7 @@ function music_data_to_dictionary () {
     DICTIONARY=()
 
     for _data in "${@}" ; do
-        if [[ -z ${_data} ]] ; then
+        if [[ -z ${_data+x} ]] ; then
           return 1
         fi
 
@@ -328,13 +328,14 @@ function remove_trailing_slash () {
 ################################################################################
 function check_input_argument () {
     # Check if path is null / empty
-    if [[ -z ${1} ]] ; then
+    if [[ -z ${1+x} ]] ; then
         err "Input parameter is missing or empty (--input <path> must be set)"
         return 2
     fi
 
     # Folder checks
-    local _source=$(remove_trailing_slash "${1}")
+    local _source
+          _source=$(remove_trailing_slash "${1}")
     check_path_exists_and_is_directory "${_source}"
     case "${?}" in
         0 ) ;;
@@ -365,13 +366,14 @@ function check_input_argument () {
 ################################################################################
 function check_output_argument () {
     # Check folder path
-    if [[ -z ${1} ]] ; then
+    if [[ -z ${1+x} ]] ; then
         err "Output parameter is missing (--output <path> must be set)"
         return 2
     fi
 
     # Folder checks
-    local _target=$(remove_trailing_slash "${1}")
+    local _target
+          _target=$(remove_trailing_slash "${1}")
     check_path_exists_and_is_directory "${_target}" 1
     case "${?}" in
         0 ) ;;

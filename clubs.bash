@@ -109,7 +109,7 @@ function build_file_name () {
     local _should_pile_on_till_closer=0
 
     while read -r -n 1 _latest ; do
-        if [[ -z ${_latest} ]] ; then
+        if [[ -z ${_latest+x} ]] ; then
             continue
         fi
         # if an addendum marker was encountered before,

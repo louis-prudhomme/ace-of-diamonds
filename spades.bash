@@ -64,7 +64,7 @@ readonly HELP_TEXT
 function check_input_argument_file () {
     local _subject="${1}"
     # Check if path is null / empty
-    if [[ -z ${_subject} ]] ; then
+    if [[ -z ${_subject+x} ]] ; then
         err "Input parameter is missing or empty (--input <file> must be set)"
         return 1
     fi
@@ -269,7 +269,7 @@ function parse_time_formats () {
     MILLISECONDS=0
     local _subject="${1}"
     local _time_format
-    if [[ -z "${_subject}" ]] ; then
+    if [[ -z ${_subject+x} ]] ; then
         return 1
     fi
 
@@ -335,7 +335,8 @@ function check_arguments_validity () {
 
     log "Extracting source duration, which can take a long time"
     # extract and parse source music file length
-    local _music_file_dotted_length=$(ffmpeg                    \
+    local _music_file_dotted_length
+          _music_file_dotted_length=$(ffmpeg                    \
                                         -nostats                \
                                         -i "${source}"          \
                                         -f null - 2>&1          \

@@ -283,23 +283,23 @@ function check_arguments_validity () {
     esac
     readonly target
 
-    if [[ -z ${should_avoid_loss} ]] ; then
+    if [[ -z ${should_avoid_loss+x} ]] ; then
         should_avoid_loss="${DEFAULT_SHOULD_AVOID_LOSS}"
     fi
     debug "Should avoid losses: ${should_avoid_loss}"
     readonly should_avoid_loss
 
     # Incompatibilities
-    if [[ -n "${target_max_bit_depth+x}" && "${target_container}" == "ogg" ]] ; then
+    if [[ -n ${target_max_bit_depth+x} && "${target_container}" == "ogg" ]] ; then
         log "The max bit depth parameter is not supported with ${target_container}"
     fi
-    if [[ -n "${target_max_sample_rate+x}" && "${target_container}" == "ogg" ]] ; then
+    if [[ -n ${target_max_sample_rate+x} && "${target_container}" == "ogg" ]] ; then
         log "The max sample rate parameter is not supported with ${target_container}"
     fi
-    if [[ -n "${target_bit_rate+x}" && "${target_container}" == "flac" ]] ; then
+    if [[ -n ${target_bit_rate+x} && "${target_container}" == "flac" ]] ; then
         log "The bitrate parameter is not supported with ${target_container}"
     fi
-    if [[ -n "${target_repackaging_bit_depth+x}" && "${target_container}" == "flac" ]] ; then
+    if [[ -n ${target_repackaging_bit_depth+x} && "${target_container}" == "flac" ]] ; then
         log "The repackaging bit depth parameter is not supported with ${target_container}"
     fi
 
@@ -324,7 +324,7 @@ function check_arguments_validity () {
         target_repackaging_bit_depth="${DEFAULT_REPACKAGING_BIT_DEPTH}"
         readonly target_repackaging_bit_depth
     fi
-    if [[ -z ${target_repackaging_bit_rate} ]] ; then
+    if [[ -z ${target_repackaging_bit_rate+x} ]] ; then
         debug "zobk"
         target_repackaging_bit_rate="${DEFAULT_REPACKAGING_BIT_RATE}"
         readonly target_repackaging_bit_rate
@@ -378,7 +378,7 @@ function get_sample_rate () {
     local _source="${1}"
     local _target="${2}"
 
-    if [[ -z ${source} ]] ; then
+    if [[ -z ${source+x} ]] ; then
         echo "${target}"
     else
         if [[ ${_source} -gt ${_target} ]] ; then
@@ -401,7 +401,7 @@ function get_bit_depth () {
     local _source="${1}"
     local _target="${2}"
 
-    if [[ -z ${_source} ]] ; then
+    if [[ -z ${_source+x} ]] ; then
         echo "${_target}"
     else
         if [[ ${_source} -gt ${_target} ]] ; then
