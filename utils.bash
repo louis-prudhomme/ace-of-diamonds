@@ -151,6 +151,7 @@ function ffprobe_music_file () {
                                            -v fatal                     \
                                            -print_format default        \
                                            -select_streams a:0          \
+                                           -show_format                 \
                                            -show_streams:a "${_input}"  \
                                            | grep "${_grep_key}"        \
                                            | sed s/TAG://               \
@@ -174,16 +175,16 @@ function ffprobe_music_file () {
 #   echoes          input string stripped from non alphanumerics
 ################################################################################
 function sanitize_path () {
-   local input="${1}"
-   local placeholder="${2}"
+   local _input="${1}"
+   local _placeholder="${2}"
 
-   input="${input//[^[:alnum:]-_]/$placeholder}"
-   input="${input//+($placeholder)/$placeholder}"
+   _input="${_input//[^[:alnum:]-_ ]/$_placeholder}"
+   _input="${_input//+($_placeholder)/$_placeholder}"
 
-   input="${input/#$placeholder}"
-   input="${input/%$placeholder}"
+   _input="${_input/#$_placeholder}"
+   _input="${_input/%$_placeholder}"
 
-   echo "${input}"
+   echo "${_input}"
 }
 
 ################################################################################

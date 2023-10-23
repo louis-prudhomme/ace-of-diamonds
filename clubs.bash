@@ -165,7 +165,7 @@ function build_file_name () {
                 case "${?}" in
                     0 ) # if value found, stop handling closure
                         debug "Extracted '${_raw}' with ${_token}"
-                        _tokens+=( "$(remove_forbidden_chars "${_raw}")" )
+                        _tokens+=( "$(sanitize_path "${_raw}")" )
                         
                         case "${_latest}" in
                             "${ADDITION_MARKER}" )
@@ -312,6 +312,7 @@ function check_arguments_validity () {
     # Debug vitals
     debug "Input: ${source}"
     debug "Output: ${target}"
+    debug "Format: ${format}"
     debug "Placeholder: ${placeholder}"
 }
 
@@ -355,7 +356,7 @@ function main () {
 
         # var DICTIONARY is referenced as input_stream_data
         declare -n "input_stream_data=DICTIONARY"
-        export output_extension="${input#*.}"
+        export output_extension="${input##*.}"
 
         # Compute file name and destination
         destination=$(build_file_name)
